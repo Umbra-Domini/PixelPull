@@ -1,10 +1,9 @@
-// Guard against double-injection
 if (window.__imgGrabberLoaded) {
-  // already running — ignore re-injection entirely
+  
 } else {
   window.__imgGrabberLoaded = true;
 
-  // Clean up stale UI from previous loads
+  
   ['__img_grabber_tooltip__','__img_grabber_overlay__','__img_grabber_banner__','__img_grabber_hud__'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.remove();
@@ -18,7 +17,7 @@ if (window.__imgGrabberLoaded) {
   let lockedSrc = null;
   let lockedEl  = null;
 
-  // ── UI creation ────────────────────────────────────────────────────────────
+  
 
   function createTooltip() {
     const el = document.createElement('div');
@@ -66,7 +65,7 @@ if (window.__imgGrabberLoaded) {
     }
   }
 
-  // ── Image detection ────────────────────────────────────────────────────────
+  
 
   function srcFromEl(el) {
     const tag = el.tagName && el.tagName.toUpperCase();
@@ -148,7 +147,7 @@ if (window.__imgGrabberLoaded) {
     return startEl;
   }
 
-  // ── Corner thumbnail ───────────────────────────────────────────────────────
+  
 
   let thumbCorner = null;
 
@@ -178,7 +177,7 @@ if (window.__imgGrabberLoaded) {
       positionThumbCorner();
     };
     img.onerror = () => {
-      // CORS fallback — screenshot crop
+      
       captureElementBlob(lockedEl).then(blob => {
         const url = URL.createObjectURL(blob);
         img.onload = () => {
@@ -197,12 +196,12 @@ if (window.__imgGrabberLoaded) {
     if (!thumbCorner || !tooltip) return;
     const tr = tooltip.getBoundingClientRect();
     const size = 80;
-    // Bottom-left of thumb aligns with top-right of tooltip
+    
     thumbCorner.style.left = (tr.right + window.scrollX) + 'px';
     thumbCorner.style.top  = (tr.top  + window.scrollY - size) + 'px';
   }
 
-  // ── Rendering ──────────────────────────────────────────────────────────────
+  
 
   function positionOverlay(el) {
     const rect = el.getBoundingClientRect();
@@ -224,13 +223,13 @@ if (window.__imgGrabberLoaded) {
     const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
     const d = gcd(w, h);
     const rw = w / d, rh = h / d;
-    // Only show if ratio numbers are reasonable
+    
     if (rw > 32 || rh > 32) return '';
     return `${rw}:${rh}`;
   }
 
   function formatBadge(src, mime) {
-    // Derive format from MIME first, then URL extension
+    
     let fmt = '';
     if (mime) {
       if (mime.includes('svg'))  fmt = 'SVG';
@@ -276,11 +275,11 @@ if (window.__imgGrabberLoaded) {
     const dimsEl = document.getElementById('__igrab_dims__');
     if (!dimsEl) return;
 
-    // Detect format from URL immediately for instant badge
+    
     const urlBadge = formatBadge(src, null);
     dimsEl.innerHTML = urlBadge ? `— ${urlBadge}` : '—';
 
-    // 1. Try to read from the DOM element directly (instant, no network)
+    
     if (el) {
       const tag = el.tagName && el.tagName.toUpperCase();
       if (tag === 'IMG' && el.naturalWidth) {
@@ -294,7 +293,7 @@ if (window.__imgGrabberLoaded) {
       }
     }
 
-    // 2. Load image to get natural dimensions
+    
     const img = new Image();
     img.onload = () => {
       if (!document.getElementById('__igrab_dims__')) return;
@@ -309,14 +308,14 @@ if (window.__imgGrabberLoaded) {
 
   function fetchSizeAndMime(src, w, h) {
     if (!src || src.startsWith('data:') || src.startsWith('blob:')) return;
-    // Sniff MIME via background for accurate format badge
+    
     chrome.runtime.sendMessage({ action: 'sniffMime', url: src }, (res) => {
       if (chrome.runtime.lastError || !res || res.error) return;
       const mime = res.mimeType || '';
       const dimsEl = document.getElementById('__igrab_dims__');
       if (dimsEl) setDimsEl(w, h, null, mime, src);
     });
-    // Also fetch Content-Length for file size
+    
     fetch(src, { method: 'HEAD' }).then(r => {
       const len = r.headers.get('content-length');
       const mime = r.headers.get('content-type') || '';
@@ -349,7 +348,7 @@ if (window.__imgGrabberLoaded) {
       }</div>
     `;
 
-    // Populate dimensions asynchronously when locked
+    
     if (isLocked) {
       populateDimensions(src, lockedEl);
       showThumbCorner(src);
@@ -401,19 +400,19 @@ if (window.__imgGrabberLoaded) {
       window.open(src, '_blank');
     };
 
-    // As soon as we lock onto an image, probe in background to warn about GIFs/videos
+    
     if (isLocked) probeAndWarnIfAnimated(src);
   }
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  
 
-  // Probe the image as soon as it's locked and warn immediately if it's animated
+  
   function probeAndWarnIfAnimated(src) {
     if (!src || src.startsWith('data:')) return;
 
     function warnAndBlock() {
       flash('🎞 This is an animated image — for best results use ⬇ Download. Copying may cause errors or lose animation.', 0);
-      // Disable the Copy Image button so intent is clear
+      
       const btn = tooltip && tooltip.querySelector('.igrab-copy-img');
       if (btn) {
         btn.disabled = true;
@@ -423,12 +422,12 @@ if (window.__imgGrabberLoaded) {
       }
     }
 
-    // URL-based fast path
+    
     if (src.toLowerCase().includes('.gif')) { warnAndBlock(); return; }
-    // Known video CDN pattern (Canva etc.)
+    
     if (src.includes('video-public.') || src.includes('/video/')) { warnAndBlock(); return; }
 
-    // Otherwise sniff MIME via background HEAD request
+    
     chrome.runtime.sendMessage({ action: 'sniffMime', url: src }, (res) => {
       if (chrome.runtime.lastError || !res || res.error) return;
       const mime = res.mimeType || '';
@@ -438,7 +437,7 @@ if (window.__imgGrabberLoaded) {
   }
 
   async function copyImageToClipboard(src) {
-    // Immediately warn if URL looks like a GIF — don't wait for fetch
+    
     if (src.toLowerCase().includes('.gif')) {
       flash('🎞 GIF detected — copying GIFs can cause errors or lose animation. Use ⬇ Download instead for best results.', 0);
       return;
@@ -446,24 +445,24 @@ if (window.__imgGrabberLoaded) {
 
     flash('Copying…');
 
-    // Helper: given a blob, copy as PNG or redirect GIFs/videos to download hint
+    
     async function handleBlob(blob) {
-      // Detect GIF by MIME, URL extension, or magic bytes (GIF87a / GIF89a)
+      
       const mightBeGif = blob.type === 'image/gif' || src.toLowerCase().includes('.gif');
-      // Also catch video formats Canva serves for animations (mp4, webm, etc.)
+      
       const isVideo = blob.type.startsWith('video/') || blob.type === 'application/octet-stream';
 
       const isGif = await (async () => {
         if (mightBeGif) return true;
-        if (isVideo) return true; // treat video-format animations same as GIF
+        if (isVideo) return true; 
         try {
           const buf = await blob.slice(0, 8).arrayBuffer();
           const bytes = new Uint8Array(buf);
-          // GIF magic: GIF8
+          
           if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) return true;
-          // MP4/MOV magic: ftyp box at offset 4
+          
           if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) return true;
-          // WebM magic: 1A 45 DF A3
+          
           if (bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3) return true;
         } catch { return false; }
         return false;
@@ -488,10 +487,10 @@ if (window.__imgGrabberLoaded) {
       const blob = await res.blob();
       await handleBlob(blob);
     } catch (err) {
-      // CORS — try background fetchBlob which runs in extension context
+      
       chrome.runtime.sendMessage({ action: 'fetchBlob', url: src }, async (res) => {
         if (chrome.runtime.lastError || !res || res.error) {
-          // Last resort: screenshot
+          
           flash('Trying screenshot…');
           try {
             const blob = await captureElementBlob(lockedEl);
@@ -512,7 +511,7 @@ if (window.__imgGrabberLoaded) {
     }
   }
 
-  // Save a blob to disk
+  
   function saveBlobAs(blob, filename) {
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -522,7 +521,7 @@ if (window.__imgGrabberLoaded) {
     setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
   }
 
-  // Derive extension from MIME type
+  
   function extFromMime(mime) {
     if (!mime) return 'png';
     if (mime.includes('gif'))  return 'gif';
@@ -538,7 +537,7 @@ if (window.__imgGrabberLoaded) {
   async function downloadImage(src) {
     flash('Downloading…');
 
-    // ── data: URI — decode and save directly (no network needed)
+    
     if (src.startsWith('data:')) {
       try {
         const res = await fetch(src);
@@ -549,23 +548,23 @@ if (window.__imgGrabberLoaded) {
       return;
     }
 
-    // ── Sniff real MIME type via a HEAD-like fetchBlob to get the right filename,
-    //    but don't transfer the body — use chrome.downloads for the actual file
-    //    so we never hit message-size limits on large GIFs/images.
-    //    Strategy: probe MIME with fetchBlob (small payload check), then hand off
-    //    to chrome.downloads which streams directly to disk.
+    
+    
+    
+    
+    
 
-    // Derive best filename from URL, will be refined after MIME sniff
+    
     const rawName = decodeURIComponent(src.split('/').pop().split('?')[0]);
     const urlHasExt = rawName && rawName.match(/\.[a-z]{2,5}$/i);
     let filename = urlHasExt ? rawName : null;
 
-    // If URL has no extension, sniff MIME via a small fetchBlob request
-    // then use chrome.downloads regardless (avoids passing large blob over message bus)
+    
+    
     const doDownload = (fname) => {
       chrome.runtime.sendMessage({ action: 'download', url: src, filename: fname }, (dlRes) => {
         if (chrome.runtime.lastError || (dlRes && dlRes.error)) {
-          // chrome.downloads failed — try fetching blob in content script (same-origin or permissive CORS)
+          
           fetch(src).then(r => r.blob()).then(blob => {
             saveBlobAs(blob, fname);
             flash('Download started ✓');
@@ -580,10 +579,10 @@ if (window.__imgGrabberLoaded) {
     };
 
     if (filename) {
-      // URL already has extension — go straight to download
+      
       doDownload(filename);
     } else {
-      // No extension in URL — sniff MIME type first to get correct filename
+      
       chrome.runtime.sendMessage({ action: 'sniffMime', url: src }, (res) => {
         if (!chrome.runtime.lastError && res && !res.error) {
           const ext = extFromMime(res.mimeType);
@@ -596,7 +595,7 @@ if (window.__imgGrabberLoaded) {
     }
   }
 
-  // Screenshot-crop: captures the visible tab, crops to the element's rect
+  
   function captureElementBlob(el) {
     return new Promise((resolve, reject) => {
       const rect = el
@@ -657,12 +656,12 @@ if (window.__imgGrabberLoaded) {
     }
   }
 
-  // ── Event handlers ─────────────────────────────────────────────────────────
+  
 
   function onMouseMove(e) {
     if (!active || locked) return;
 
-    // Don't trigger if hovering over the HUD itself
+    
     if (hud && hud.contains(e.target)) return;
 
     const path = (e.composedPath ? e.composedPath() : [e.target])
@@ -693,7 +692,7 @@ if (window.__imgGrabberLoaded) {
     if (!active) return;
     const path = e.composedPath ? e.composedPath() : [];
 
-    // Ignore clicks inside tooltip or HUD — use contains to catch all children (buttons etc)
+    
     if (tooltip && tooltip.contains(e.target)) return;
     if (hud     && hud.contains(e.target))     return;
 
@@ -734,7 +733,7 @@ if (window.__imgGrabberLoaded) {
     }
   }
 
-  // ── Activate / Deactivate ──────────────────────────────────────────────────
+  
 
   function activate() {
     if (active) return;
@@ -762,7 +761,7 @@ if (window.__imgGrabberLoaded) {
     document.body.style.cursor = '';
     if (overlay) { overlay.style.display = 'none'; overlay.classList.remove('igrab-locked'); }
     if (tooltip) tooltip.style.display = 'none';
-    // Remove HUD with fade
+    
     if (hud) {
       hud.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
       hud.style.opacity = '0';
@@ -773,7 +772,7 @@ if (window.__imgGrabberLoaded) {
   }
 
   function showBanner(msg) {
-    // Only show banner in the top-level frame
+    
     if (window !== window.top) return;
     let b = document.getElementById('__img_grabber_banner__');
     if (!b) {

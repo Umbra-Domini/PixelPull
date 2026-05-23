@@ -1,4 +1,3 @@
-// Toggle grabber via keyboard shortcut
 chrome.commands.onCommand.addListener((command) => {
   if (command === 'toggle-grabber') {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -16,7 +15,7 @@ chrome.commands.onCommand.addListener((command) => {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
-  // ── Download: use chrome.downloads API (bypasses page-level CORS restrictions)
+  
   if (msg.action === 'download') {
     const filename = (msg.filename && msg.filename.match(/\.[a-z]{2,5}$/i))
       ? msg.filename : 'image.png';
@@ -27,10 +26,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok: true });
       }
     });
-    return true; // async
+    return true; 
   }
 
-  // ── sniffMime: HEAD request to get Content-Type without downloading the body
+  
   if (msg.action === 'sniffMime') {
     fetch(msg.url, { method: 'HEAD' })
       .then(r => {
@@ -38,7 +37,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ mimeType });
       })
       .catch(() => {
-        // HEAD blocked — fall back to a tiny range fetch
+        
         fetch(msg.url, { headers: { Range: 'bytes=0-15' } })
           .then(r => {
             const mimeType = r.headers.get('content-type') || 'image/png';
@@ -49,7 +48,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 
-  // ── fetchBlob: fetch image as array buffer from background context
+  
   if (msg.action === 'fetchBlob') {
     fetch(msg.url)
       .then(r => {
@@ -61,10 +60,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ data: Array.from(new Uint8Array(buf)), mimeType });
       })
       .catch(err => sendResponse({ error: err.message }));
-    return true; // async
+    return true; 
   }
 
-  // ── captureAndCrop: screenshot the visible tab for CORS-blocked images
+  
   if (msg.action === 'captureAndCrop') {
     const tabId = sender.tab?.id;
     const windowId = sender.tab?.windowId;
@@ -79,7 +78,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ dataUrl });
       }
     });
-    return true; // async
+    return true; 
   }
 
 });
