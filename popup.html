@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 260px;
+      background: #002B36;
+      color: #93a1a1;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+      padding: 0;
+      border: 1px solid #0a4f5c;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: #073642;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #0a4f5c;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: #002B36;
+      border: 1px solid #5FFFBF44;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .logo-icon.active {
+      border-color: #5FFFBF;
+      box-shadow: 0 0 8px rgba(95, 255, 191, 0.3);
+    }
+
+    .logo-text {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #5FFFBF;
+      text-transform: uppercase;
+    }
+
+    .logo-sub {
+      font-size: 9px;
+      color: #586e75;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* ── Body ── */
+    .body {
+      padding: 14px;
+    }
+
+    /* Status line */
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 12px;
+      font-size: 10px;
+      color: #586e75;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #586e75;
+      flex-shrink: 0;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+
+    .status-dot.active {
+      background: #5FFFBF;
+      box-shadow: 0 0 6px #5FFFBF;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.4;
+      }
+    }
+
+    /* Toggle button */
+    .toggle-btn {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #5FFFBF44;
+      border-radius: 3px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      transition: all 0.2s;
+      background: #073642;
+      color: #5FFFBF;
+      margin-bottom: 14px;
+    }
+
+    .toggle-btn:hover {
+      background: #5FFFBF;
+      border-color: #5FFFBF;
+      color: #002B36;
+      box-shadow: 0 0 12px rgba(95, 255, 191, 0.3);
+    }
+
+    .toggle-btn.active {
+      background: #5FFFBF;
+      border-color: #5FFFBF;
+      color: #002B36;
+    }
+
+    .toggle-btn.active:hover {
+      background: #3fd89f;
+      border-color: #3fd89f;
+    }
+
+    /* Divider */
+    .divider {
+      height: 1px;
+      background: #0a4f5c;
+      margin: 0 0 14px;
+    }
+
+    /* Info block */
+    .info-block {
+      margin-bottom: 14px;
+    }
+
+    .info-heading {
+      font-size: 9px;
+      font-weight: 700;
+      color: #5FFFBF;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 8px;
+    }
+
+    .info-heading::before {
+      content: '$ ';
+      color: #586e75;
+    }
+
+    .step {
+      display: flex;
+      gap: 8px;
+      padding: 5px 8px;
+      border-radius: 3px;
+      font-size: 10px;
+      line-height: 1.5;
+      color: #93a1a1;
+      margin-bottom: 3px;
+      background: #073642;
+      border: 1px solid #0a4f5c;
+    }
+
+    .step-num {
+      color: #5FFFBF;
+      font-weight: 700;
+      flex-shrink: 0;
+      min-width: 14px;
+    }
+
+    /* Lock flow note */
+    .lock-note {
+      background: #073642;
+      border: 1px solid #b5890033;
+      border-left: 3px solid #b58900;
+      border-radius: 3px;
+      padding: 7px 10px;
+      font-size: 10px;
+      color: #93a1a1;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .lock-note-title {
+      font-size: 9px;
+      font-weight: 700;
+      color: #b58900;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+
+    kbd {
+      background: #002B36;
+      border: 1px solid #0a4f5c;
+      border-radius: 2px;
+      padding: 1px 5px;
+      font-family: inherit;
+      color: #5FFFBF;
+      font-size: 9px;
+    }
+
+    /* Works with */
+    .works-with {
+      font-size: 10px;
+      color: #586e75;
+      line-height: 1.6;
+      border-top: 1px solid #0a4f5c;
+      padding-top: 10px;
+    }
+
+    .works-with-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: #5FFFBF;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 5px;
+    }
+
+    .tag {
+      background: #073642;
+      border: 1px solid #0a4f5c;
+      border-radius: 2px;
+      padding: 2px 6px;
+      font-size: 9px;
+      color: #2aa198;
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <div class="logo-icon" id="logoIcon">
+      <img src="imgs/icon128.png" width="24" height="24" alt="PixelPull">
+    </div>
+    <div>
+      <div class="logo-text">PixelPull</div>
+      <div class="logo-sub">Hover &amp; Copy</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <div class="status-line">
+      <span class="status-dot" id="dot"></span>
+      <span id="status-text">Inactive</span>
+    </div>
+
+    <button class="toggle-btn" id="toggleBtn">Activate Grabber</button>
+
+    <div class="divider"></div>
+
+    <div class="info-block">
+      <div class="info-heading">How to use</div>
+      <div class="step"><span class="step-num">1.</span><span>Click Activate or press <kbd>Alt+G</kbd></span></div>
+      <div class="step"><span class="step-num">2.</span><span>Hover over any image on the page</span></div>
+      <div class="step"><span class="step-num">3.</span><span>Click the image to <strong
+            style="color:#b58900">lock</strong> it, then use Copy URL, Copy Image, or Download</span></div>
+      <div class="step"><span class="step-num">4.</span><span>Press <kbd>Esc</kbd> or click to <strong
+            style="color:#b58900">unlock</strong>, then <kbd>Esc</kbd> again to exit</span></div>
+    </div>
+
+    <div class="lock-note">
+      <div class="lock-note-title">🔒 Lock mode</div>
+      Click an image to lock onto it. While locked: click anywhere or press <kbd>Esc</kbd> to unlock. Press
+      <kbd>Esc</kbd> again to exit the grabber entirely.
+    </div>
+
+    <div class="works-with">
+      <div class="works-with-label">Works with</div>
+      <div class="tag-row">
+        <span class="tag">&lt;img&gt;</span>
+        <span class="tag">CSS background</span>
+        <span class="tag">SVG</span>
+        <span class="tag">canvas</span>
+        <span class="tag">video poster</span>
+        <span class="tag">srcset</span>
+        <span class="tag">lazy-load</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+
+</html>

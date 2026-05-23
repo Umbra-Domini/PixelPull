@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "PixelPull",
+  "version": "1.1",
+  "description": "Hover over any image or graphic to grab its URL, copy it, or download it — bypasses right-click restrictions.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "clipboardWrite",
+    "downloads",
+    "tabs"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "imgs/icon16.png",
+      "32": "imgs/icon32.png",
+      "48": "imgs/icon48.png",
+      "128": "imgs/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "commands": {
+    "toggle-grabber": {
+      "suggested_key": {
+        "default": "Alt+G"
+      },
+      "description": "Toggle Image Grabber mode"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "imgs/icon16.png",
+    "32": "imgs/icon32.png",
+    "48": "imgs/icon48.png",
+    "128": "imgs/icon128.png"
+  }
+}
