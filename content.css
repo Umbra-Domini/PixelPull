@@ -74,6 +74,22 @@
   margin-bottom: 8px;
   padding: 0 2px;
   letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+#__img_grabber_tooltip__ .igrab-fmt-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  border: 1px solid;
+  text-transform: uppercase;
+  line-height: 1.6;
 }
 
 #__img_grabber_tooltip__ .igrab-actions {
@@ -171,6 +187,38 @@
   font-family: inherit;
   color: #5FFFBF;
   font-size: 9px;
+}
+
+/* ── Corner thumbnail (floating, top-right of tooltip) ─────────────────────── */
+#__img_grabber_thumb_corner__ {
+  position: absolute;
+  z-index: 2147483647;
+  width: 80px;
+  height: 80px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: igrab-fadein 0.2s ease;
+  border: 1px solid #b58900;
+  border-radius: 4px;
+}
+
+#__img_grabber_thumb_corner__ .igrab-tc-img {
+  max-width: 80px;
+  max-height: 80px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: none;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.5));
+}
+
+#__img_grabber_thumb_corner__ .igrab-tc-loader {
+  color: #586e75;
+  font-size: 14px;
+  letter-spacing: 0.15em;
 }
 
 /* Flash message */

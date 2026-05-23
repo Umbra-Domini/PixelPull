@@ -148,6 +148,60 @@ if (window.__imgGrabberLoaded) {
     return startEl;
   }
 
+  // ── Corner thumbnail ───────────────────────────────────────────────────────
+
+  let thumbCorner = null;
+
+  function removeThumbCorner() {
+    if (thumbCorner) { thumbCorner.remove(); thumbCorner = null; }
+  }
+
+  function showThumbCorner(src) {
+    removeThumbCorner();
+
+    const el = document.createElement('div');
+    el.id = '__img_grabber_thumb_corner__';
+    el.innerHTML = `
+      <div class="igrab-tc-loader" id="__igrab_tc_loader__">⋯</div>
+      <img class="igrab-tc-img" id="__igrab_tc_img__" src="${src}" alt="" />
+    `;
+    document.body.appendChild(el);
+    thumbCorner = el;
+
+    const img = el.querySelector('.igrab-tc-img');
+    const loader = el.querySelector('.igrab-tc-loader');
+
+    img.style.display = 'none';
+    img.onload = () => {
+      loader.style.display = 'none';
+      img.style.display = 'block';
+      positionThumbCorner();
+    };
+    img.onerror = () => {
+      // CORS fallback — screenshot crop
+      captureElementBlob(lockedEl).then(blob => {
+        const url = URL.createObjectURL(blob);
+        img.onload = () => {
+          loader.style.display = 'none';
+          img.style.display = 'block';
+          positionThumbCorner();
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+        };
+        img.onerror = () => { el.remove(); thumbCorner = null; };
+        img.src = url;
+      }).catch(() => { el.remove(); thumbCorner = null; });
+    };
+  }
+
+  function positionThumbCorner() {
+    if (!thumbCorner || !tooltip) return;
+    const tr = tooltip.getBoundingClientRect();
+    const size = 80;
+    // Bottom-left of thumb aligns with top-right of tooltip
+    thumbCorner.style.left = (tr.right + window.scrollX) + 'px';
+    thumbCorner.style.top  = (tr.top  + window.scrollY - size) + 'px';
+  }
+
   // ── Rendering ──────────────────────────────────────────────────────────────
 
   function positionOverlay(el) {
@@ -165,21 +219,77 @@ if (window.__imgGrabberLoaded) {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
+  function calcAspectRatio(w, h) {
+    if (!w || !h) return '';
+    const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+    const d = gcd(w, h);
+    const rw = w / d, rh = h / d;
+    // Only show if ratio numbers are reasonable
+    if (rw > 32 || rh > 32) return '';
+    return `${rw}:${rh}`;
+  }
+
+  function formatBadge(src, mime) {
+    // Derive format from MIME first, then URL extension
+    let fmt = '';
+    if (mime) {
+      if (mime.includes('svg'))  fmt = 'SVG';
+      else if (mime.includes('gif'))  fmt = 'GIF';
+      else if (mime.includes('webp')) fmt = 'WebP';
+      else if (mime.includes('jpeg') || mime.includes('jpg')) fmt = 'JPG';
+      else if (mime.includes('png'))  fmt = 'PNG';
+      else if (mime.includes('avif')) fmt = 'AVIF';
+      else if (mime.includes('mp4') || mime.includes('webm')) fmt = 'VID';
+    }
+    if (!fmt && src) {
+      const ext = src.split('?')[0].split('.').pop().toLowerCase();
+      const map = { png:'PNG', jpg:'JPG', jpeg:'JPG', gif:'GIF', webp:'WebP', svg:'SVG', avif:'AVIF' };
+      fmt = map[ext] || '';
+    }
+    if (src && src.startsWith('data:image/svg')) fmt = 'SVG';
+    if (!fmt) return '';
+
+    const colors = {
+      PNG:  { bg: '#1a3a5c', color: '#268bd2' },
+      JPG:  { bg: '#1a3a2a', color: '#2aa198' },
+      GIF:  { bg: '#3a1a3a', color: '#d33682' },
+      WebP: { bg: '#1a2a3a', color: '#6c71c4' },
+      SVG:  { bg: '#2a1a10', color: '#cb4b16' },
+      AVIF: { bg: '#1a3a1a', color: '#859900' },
+      VID:  { bg: '#3a2a10', color: '#b58900' },
+    };
+    const c = colors[fmt] || { bg: '#073642', color: '#93a1a1' };
+    return `<span class="igrab-fmt-badge" style="background:${c.bg};color:${c.color};border-color:${c.color}44">${fmt}</span>`;
+  }
+
+  function setDimsEl(w, h, fileSize, mime, src) {
+    const dimsEl = document.getElementById('__igrab_dims__');
+    if (!dimsEl) return;
+    const ratio = calcAspectRatio(w, h);
+    const sizeStr = fileSize ? ` · ${formatBytes(fileSize)}` : '';
+    const ratioStr = ratio ? ` · ${ratio}` : '';
+    const badge = formatBadge(src, mime);
+    dimsEl.innerHTML = `${w} × ${h} px${ratioStr}${sizeStr} ${badge}`;
+  }
+
   function populateDimensions(src, el) {
     const dimsEl = document.getElementById('__igrab_dims__');
     if (!dimsEl) return;
+
+    // Detect format from URL immediately for instant badge
+    const urlBadge = formatBadge(src, null);
+    dimsEl.innerHTML = urlBadge ? `— ${urlBadge}` : '—';
 
     // 1. Try to read from the DOM element directly (instant, no network)
     if (el) {
       const tag = el.tagName && el.tagName.toUpperCase();
       if (tag === 'IMG' && el.naturalWidth) {
-        dimsEl.textContent = `${el.naturalWidth} × ${el.naturalHeight} px`;
-        // Try to also get file size via HEAD
-        fetchSize(src, dimsEl, `${el.naturalWidth} × ${el.naturalHeight} px`);
+        setDimsEl(el.naturalWidth, el.naturalHeight, null, null, src);
+        fetchSizeAndMime(src, el.naturalWidth, el.naturalHeight);
         return;
       }
       if (tag === 'CANVAS') {
-        dimsEl.textContent = `${el.width} × ${el.height} px`;
+        setDimsEl(el.width, el.height, null, 'image/png', src);
         return;
       }
     }
@@ -187,28 +297,32 @@ if (window.__imgGrabberLoaded) {
     // 2. Load image to get natural dimensions
     const img = new Image();
     img.onload = () => {
-      if (!document.getElementById('__igrab_dims__')) return; // tooltip gone
-      const dimStr = `${img.naturalWidth} × ${img.naturalHeight} px`;
-      dimsEl.textContent = dimStr;
-      fetchSize(src, dimsEl, dimStr);
+      if (!document.getElementById('__igrab_dims__')) return;
+      setDimsEl(img.naturalWidth, img.naturalHeight, null, null, src);
+      fetchSizeAndMime(src, img.naturalWidth, img.naturalHeight);
     };
     img.onerror = () => {
-      if (dimsEl) dimsEl.textContent = '';
+      if (dimsEl) dimsEl.innerHTML = urlBadge || '';
     };
     img.src = src;
   }
 
-  function fetchSize(src, dimsEl, dimStr) {
+  function fetchSizeAndMime(src, w, h) {
     if (!src || src.startsWith('data:') || src.startsWith('blob:')) return;
+    // Sniff MIME via background for accurate format badge
     chrome.runtime.sendMessage({ action: 'sniffMime', url: src }, (res) => {
-      // sniffMime does a HEAD — Content-Length comes back if server provides it
-      // We piggyback on the response for size; if not available, skip silently
+      if (chrome.runtime.lastError || !res || res.error) return;
+      const mime = res.mimeType || '';
+      const dimsEl = document.getElementById('__igrab_dims__');
+      if (dimsEl) setDimsEl(w, h, null, mime, src);
     });
-    // Use fetch HEAD in content context as well for Content-Length
+    // Also fetch Content-Length for file size
     fetch(src, { method: 'HEAD' }).then(r => {
       const len = r.headers.get('content-length');
-      const el = document.getElementById('__igrab_dims__');
-      if (el && len) el.textContent = `${dimStr} · ${formatBytes(parseInt(len, 10))}`;
+      const mime = r.headers.get('content-type') || '';
+      if (!len && !mime) return;
+      const dimsEl = document.getElementById('__igrab_dims__');
+      if (dimsEl) setDimsEl(w, h, len ? parseInt(len, 10) : null, mime || null, src);
     }).catch(() => {});
   }
 
@@ -238,6 +352,9 @@ if (window.__imgGrabberLoaded) {
     // Populate dimensions asynchronously when locked
     if (isLocked) {
       populateDimensions(src, lockedEl);
+      showThumbCorner(src);
+    } else {
+      removeThumbCorner();
     }
 
     tooltip.style.display = 'block';
@@ -255,6 +372,7 @@ if (window.__imgGrabberLoaded) {
     tooltip.style.left = (tx + window.scrollX) + 'px';
     tooltip.style.top  = (ty + window.scrollY) + 'px';
     tooltip.classList.toggle('igrab-locked', isLocked);
+    if (isLocked) positionThumbCorner();
 
     tooltip.querySelector('.igrab-copy-url').onclick = (e) => {
       e.stopPropagation();
@@ -585,6 +703,7 @@ if (window.__imgGrabberLoaded) {
       if (tooltip) tooltip.style.display = 'none';
       if (overlay) overlay.style.display = 'none';
       lockedEl = lockedSrc = null;
+      removeThumbCorner();
       updateHud();
       e.preventDefault(); e.stopPropagation();
     } else if (lockedSrc) {
@@ -607,6 +726,7 @@ if (window.__imgGrabberLoaded) {
         if (tooltip) tooltip.style.display = 'none';
         if (overlay) overlay.style.display = 'none';
         lockedEl = lockedSrc = null;
+        removeThumbCorner();
         updateHud();
       } else {
         deactivate();
@@ -634,6 +754,7 @@ if (window.__imgGrabberLoaded) {
     if (!active) return;
     active = false; locked = false;
     lockedEl = lockedSrc = null;
+    removeThumbCorner();
     document.removeEventListener('mousemove',   onMouseMove,   true);
     document.removeEventListener('click',       onMouseClick,  true);
     document.removeEventListener('contextmenu', onContextMenu, true);
