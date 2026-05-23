@@ -14,6 +14,7 @@ if (window.__imgGrabberLoaded) {
   let tooltip   = null;
   let overlay   = null;
   let hud       = null;
+  let colorChip = null;
   let lockedSrc = null;
   let lockedEl  = null;
 
@@ -50,6 +51,112 @@ if (window.__imgGrabberLoaded) {
       deactivate();
     });
     return el;
+  }
+
+  // Sample pixel colour at cursor position from an <img> element
+  function samplePixelAt(clientX, clientY, imgEl) {
+    try {
+      const rect  = imgEl.getBoundingClientRect();
+      const scaleX = (imgEl.naturalWidth  || rect.width)  / rect.width;
+      const scaleY = (imgEl.naturalHeight || rect.height) / rect.height;
+      const px = (clientX - rect.left) * scaleX;
+      const py = (clientY - rect.top)  * scaleY;
+      const c  = document.createElement('canvas');
+      c.width  = 1; c.height = 1;
+      const ctx2 = c.getContext('2d', { willReadFrequently: true });
+      ctx2.drawImage(imgEl, -px, -py, imgEl.naturalWidth || rect.width, imgEl.naturalHeight || rect.height);
+      const d = ctx2.getImageData(0, 0, 1, 1).data;
+      return '#' + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, '0')).join('').toUpperCase();
+    } catch(e) {
+      return null; // CORS-tainted
+    }
+  }
+
+  // Floating live colour chip — shown while hovering unlocked, hidden on lock
+  function createColorChip() {
+    const el = document.createElement('div');
+    el.id = '__img_grabber_colorchip__';
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function hideColorChip() {
+    if (colorChip) colorChip.style.display = 'none';
+  }
+
+
+
+  let _colorChipThrottle = 0;
+
+  function updateColorChip(clientX, clientY, imgEl, src) {
+    if (!colorChip) return;
+    const now = Date.now();
+    if (now - _colorChipThrottle < 60) return;
+    _colorChipThrottle = now;
+
+    // Find the real <img> for pixel sampling (highlightEl may be a wrapper div)
+    let sampleEl = null;
+    if (imgEl) {
+      const tag = imgEl.tagName && imgEl.tagName.toUpperCase();
+      if (tag === 'IMG') {
+        sampleEl = imgEl;
+      } else {
+        // Search children first, then siblings, then parent's children
+        sampleEl = (imgEl.querySelector && imgEl.querySelector('img')) ||
+                   (imgEl.parentElement && imgEl.parentElement.querySelector('img')) || null;
+      }
+    }
+    const hex = sampleEl ? samplePixelAt(clientX, clientY, sampleEl) : null;
+
+    // Dimensions
+    const tag = imgEl && imgEl.tagName && imgEl.tagName.toUpperCase();
+    let w = 0, h = 0;
+    const realImg = sampleEl || imgEl;
+    if (realImg && realImg.tagName && realImg.tagName.toUpperCase() === 'IMG' && realImg.naturalWidth) {
+      w = realImg.naturalWidth; h = realImg.naturalHeight;
+    } else if (tag === 'CANVAS' && imgEl.width) {
+      w = imgEl.width; h = imgEl.height;
+    } else if (imgEl) {
+      const r = imgEl.getBoundingClientRect();
+      w = Math.round(r.width); h = Math.round(r.height);
+    }
+
+    // Store for async mime refresh
+    colorChip.dataset.src = src || '';
+    colorChip.dataset.w = w;
+    colorChip.dataset.h = h;
+
+    const fmt = (() => {
+      if (!src) return '';
+      const realUrl = decodeEmbeddedUrl(src) || src;
+      const ext = realUrl.split('?')[0].split('.').pop().toLowerCase();
+      const map = { png:'PNG', jpg:'JPG', jpeg:'JPG', gif:'GIF', webp:'WebP', svg:'SVG', avif:'AVIF' };
+      return map[ext] || '';
+    })();
+    const fmtHtml = fmt ? `<span class="igrab-chip-sep">·</span><span class="igrab-chip-fmt">${fmt}</span>` : '';
+    const dimsHtml = (w && h) ? `<span class="igrab-chip-sep">·</span><span class="igrab-chip-dims">${w} × ${h}</span>` : '';
+
+    colorChip.style.display = 'flex';
+    if (hex) {
+      colorChip.innerHTML = `<span class="igrab-chip-swatch" style="background:${hex}"></span><span class="igrab-chip-label">${hex}</span>${dimsHtml}${fmtHtml}`;
+    } else if (w && h) {
+      colorChip.innerHTML = `<span class="igrab-chip-dims-only">${w} × ${h} px</span>${fmtHtml}`;
+    } else {
+      colorChip.style.display = 'none';
+      return;
+    }
+
+    // Position above-right of cursor; flip if off-screen
+    const cw = colorChip.offsetWidth  || 160;
+    const ch = colorChip.offsetHeight || 22;
+    const margin = 12;
+    let cx = clientX + margin;
+    let cy = clientY - ch - margin;
+    if (cx + cw > window.innerWidth - 8) cx = clientX - cw - margin;
+    if (cy < 8) cy = clientY + margin;
+    if (cx < 8) cx = 8;
+    colorChip.style.left = (cx + window.scrollX) + 'px';
+    colorChip.style.top  = (cy + window.scrollY) + 'px';
   }
 
   function updateHud() {
@@ -163,6 +270,7 @@ if (window.__imgGrabberLoaded) {
     el.innerHTML = `
       <div class="igrab-tc-loader" id="__igrab_tc_loader__">⋯</div>
       <img class="igrab-tc-img" id="__igrab_tc_img__" src="${src}" alt="" />
+      <div class="igrab-tc-hint">✂ crop</div>
     `;
     document.body.appendChild(el);
     thumbCorner = el;
@@ -177,7 +285,6 @@ if (window.__imgGrabberLoaded) {
       positionThumbCorner();
     };
     img.onerror = () => {
-      
       captureElementBlob(lockedEl).then(blob => {
         const url = URL.createObjectURL(blob);
         img.onload = () => {
@@ -190,6 +297,11 @@ if (window.__imgGrabberLoaded) {
         img.src = url;
       }).catch(() => { el.remove(); thumbCorner = null; });
     };
+
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openCropModal(src, lockedEl);
+    });
   }
 
   function positionThumbCorner() {
@@ -202,6 +314,259 @@ if (window.__imgGrabberLoaded) {
   }
 
   
+
+  function openCropModal(src, sourceEl) {
+    const existing = document.getElementById('__igrab_crop_modal__');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = '__igrab_crop_modal__';
+    modal.innerHTML = `
+      <div class="igrab-crop-inner">
+        <div class="igrab-crop-header">
+          <span class="igrab-crop-title">✂ Crop Image</span>
+          <span class="igrab-crop-subtitle">Drag to select area</span>
+          <button class="igrab-crop-close">✕</button>
+        </div>
+        <div class="igrab-crop-canvas-wrap" id="__igrab_crop_wrap__">
+          <canvas id="__igrab_crop_canvas__"></canvas>
+          <div class="igrab-crop-selection" id="__igrab_crop_sel__"></div>
+          <div class="igrab-crop-loading" id="__igrab_crop_loading__">Loading image…</div>
+        </div>
+        <div class="igrab-crop-dims" id="__igrab_crop_dims__"></div>
+        <div class="igrab-crop-fmt-row">
+          <span class="igrab-crop-fmt-label">Format</span>
+          <div class="igrab-crop-fmt-pills" id="__igrab_crop_fmt__">
+            <button class="igrab-fmt-pill" data-fmt="image/png" data-ext="png">PNG</button>
+            <button class="igrab-fmt-pill" data-fmt="image/jpeg" data-ext="jpg">JPG</button>
+            <button class="igrab-fmt-pill" data-fmt="image/webp" data-ext="webp">WebP</button>
+          </div>
+        </div>
+        <div class="igrab-crop-actions">
+          <button class="igrab-btn igrab-crop-copy" disabled>Copy Crop</button>
+          <button class="igrab-btn igrab-crop-download" disabled>⬇ Download Crop</button>
+          <button class="igrab-btn igrab-crop-reset">Reset</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const closeBtn  = modal.querySelector('.igrab-crop-close');
+    const canvas    = modal.querySelector('#__igrab_crop_canvas__');
+    const selDiv    = modal.querySelector('#__igrab_crop_sel__');
+    const dimsEl    = modal.querySelector('#__igrab_crop_dims__');
+    const copyBtn   = modal.querySelector('.igrab-crop-copy');
+    const dlBtn     = modal.querySelector('.igrab-crop-download');
+    const resetBtn  = modal.querySelector('.igrab-crop-reset');
+    const loadingEl = modal.querySelector('#__igrab_crop_loading__');
+    const fmtPills  = modal.querySelectorAll('.igrab-fmt-pill');
+    const ctx       = canvas.getContext('2d');
+
+    let naturalImg = null;
+    let scale = 1;
+    let crop = null;
+    let dragging = false, startX = 0, startY = 0;
+    let selectedMime = 'image/png';
+    let selectedExt  = 'png';
+
+    function detectFormatFromSrc(s) {
+      if (!s) return null;
+      const clean = s.split('?')[0].toLowerCase();
+      if (clean.includes('.jpg') || clean.includes('.jpeg') || s.includes('format:JPG') || s.includes('format=jpg')) return { mime: 'image/jpeg', ext: 'jpg' };
+      if (clean.includes('.webp') || s.includes('format:WEBP')) return { mime: 'image/webp', ext: 'webp' };
+      if (clean.includes('.png') || s.includes('format:PNG'))  return { mime: 'image/png',  ext: 'png' };
+      if (clean.startsWith('data:image/jpeg')) return { mime: 'image/jpeg', ext: 'jpg' };
+      if (clean.startsWith('data:image/webp')) return { mime: 'image/webp', ext: 'webp' };
+      return null;
+    }
+
+    function setActivePill(mime) {
+      selectedMime = mime;
+      fmtPills.forEach(p => {
+        const active = p.dataset.fmt === mime;
+        p.classList.toggle('igrab-fmt-pill-active', active);
+        if (active) selectedExt = p.dataset.ext;
+      });
+    }
+
+    fmtPills.forEach(p => {
+      p.addEventListener('click', (e) => { e.stopPropagation(); setActivePill(p.dataset.fmt); });
+    });
+
+    const detected = detectFormatFromSrc(src);
+    setActivePill(detected ? detected.mime : 'image/png');
+
+    closeBtn.addEventListener('click', (e) => { e.stopPropagation(); modal.remove(); });
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+    function updateDims() {
+      if (!crop || !naturalImg) { dimsEl.textContent = ''; return; }
+      const rawX = crop._rawX !== undefined ? crop._rawX : crop.x - (crop._offX || 0);
+      const rawY = crop._rawY !== undefined ? crop._rawY : crop.y - (crop._offY || 0);
+      const rw = Math.round(crop.w / scale);
+      const rh = Math.round(crop.h / scale);
+      dimsEl.textContent = `${rw} × ${rh} px`;
+    }
+
+    function renderSelection() {
+      if (!crop) { selDiv.style.display = 'none'; return; }
+      selDiv.style.display = 'block';
+      selDiv.style.left   = crop.x + 'px';
+      selDiv.style.top    = crop.y + 'px';
+      selDiv.style.width  = crop.w + 'px';
+      selDiv.style.height = crop.h + 'px';
+    }
+
+    function getCropBlob() {
+      return new Promise((resolve) => {
+        const rawX = crop._rawX !== undefined ? crop._rawX : crop.x - (crop._offX || 0);
+        const rawY = crop._rawY !== undefined ? crop._rawY : crop.y - (crop._offY || 0);
+        const rx = Math.round(rawX / scale);
+        const ry = Math.round(rawY / scale);
+        const rw = Math.round(crop.w / scale);
+        const rh = Math.round(crop.h / scale);
+        const out = document.createElement('canvas');
+        out.width  = rw;
+        out.height = rh;
+        out.getContext('2d').drawImage(naturalImg, rx, ry, rw, rh, 0, 0, rw, rh);
+        const quality = selectedMime === 'image/jpeg' ? 0.92 : undefined;
+        out.toBlob(resolve, selectedMime, quality);
+      });
+    }
+
+    function enableButtons(on) {
+      copyBtn.disabled = !on;
+      dlBtn.disabled   = !on;
+    }
+
+    copyBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!crop) return;
+      const prevMime = selectedMime;
+      const prevExt  = selectedExt;
+      selectedMime = 'image/png'; selectedExt = 'png';
+      const blob = await getCropBlob();
+      selectedMime = prevMime; selectedExt = prevExt;
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        copyBtn.textContent = 'Copied ✓';
+        setTimeout(() => { copyBtn.textContent = 'Copy Crop'; }, 2000);
+      } catch { copyBtn.textContent = 'Failed'; setTimeout(() => { copyBtn.textContent = 'Copy Crop'; }, 2000); }
+    });
+
+    dlBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!crop) return;
+      const blob = await getCropBlob();
+      saveBlobAs(blob, `crop.${selectedExt}`);
+      dlBtn.textContent = 'Downloading… ✓';
+      setTimeout(() => { dlBtn.textContent = '⬇ Download Crop'; }, 2000);
+    });
+
+    resetBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      crop = null;
+      selDiv.style.display = 'none';
+      dimsEl.textContent = '';
+      enableButtons(false);
+    });
+
+    const wrap = modal.querySelector('#__igrab_crop_wrap__');
+
+    wrap.addEventListener('mousedown', (e) => {
+      if (!naturalImg) return;
+      e.preventDefault(); e.stopPropagation();
+      const cr = canvas.getBoundingClientRect();
+      const wr = wrap.getBoundingClientRect();
+      const canvasOffX = cr.left - wr.left;
+      const canvasOffY = cr.top  - wr.top;
+      startX = e.clientX - cr.left;
+      startY = e.clientY - cr.top;
+      if (startX < 0 || startY < 0 || startX > cr.width || startY > cr.height) return;
+      crop = { x: startX + canvasOffX, y: startY + canvasOffY, w: 0, h: 0 };
+      crop._offX = canvasOffX;
+      crop._offY = canvasOffY;
+      dragging = true;
+      enableButtons(false);
+      renderSelection();
+    });
+
+    window.addEventListener('mousemove', function onMove(e) {
+      if (!dragging) return;
+      const cr = canvas.getBoundingClientRect();
+      const cx = Math.min(Math.max(e.clientX - cr.left, 0), cr.width);
+      const cy = Math.min(Math.max(e.clientY - cr.top,  0), cr.height);
+      crop = {
+        x: Math.min(startX, cx) + crop._offX,
+        y: Math.min(startY, cy) + crop._offY,
+        w: Math.abs(cx - startX),
+        h: Math.abs(cy - startY),
+        _offX: crop._offX,
+        _offY: crop._offY,
+        _rawX: Math.min(startX, cx),
+        _rawY: Math.min(startY, cy),
+      };
+      renderSelection();
+      updateDims();
+    });
+
+    window.addEventListener('mouseup', function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      if (crop && crop.w > 4 && crop.h > 4) {
+        enableButtons(true);
+      } else {
+        crop = null;
+        selDiv.style.display = 'none';
+        dimsEl.textContent = '';
+      }
+    });
+
+    function loadImage(imgSrc) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        naturalImg = img;
+        const MAX = 500;
+        scale = Math.min(1, MAX / img.naturalWidth, MAX / img.naturalHeight);
+        canvas.width  = Math.round(img.naturalWidth  * scale);
+        canvas.height = Math.round(img.naturalHeight * scale);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        loadingEl.style.display = 'none';
+      };
+      img.onerror = () => {
+        loadingEl.textContent = 'CORS blocked — fetching via extension…';
+        chrome.runtime.sendMessage({ action: 'fetchBlob', url: imgSrc }, (res) => {
+          if (chrome.runtime.lastError || !res || res.error) {
+            loadingEl.textContent = 'Could not load image.';
+            return;
+          }
+          const blob = new Blob([new Uint8Array(res.data)], { type: res.mimeType || 'image/png' });
+          const url  = URL.createObjectURL(blob);
+          const img2 = new Image();
+          img2.onload = () => {
+            naturalImg = img2;
+            const MAX = 500;
+            scale = Math.min(1, MAX / img2.naturalWidth, MAX / img2.naturalHeight);
+            canvas.width  = Math.round(img2.naturalWidth  * scale);
+            canvas.height = Math.round(img2.naturalHeight * scale);
+            ctx.drawImage(img2, 0, 0, canvas.width, canvas.height);
+            loadingEl.style.display = 'none';
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+          };
+          img2.onerror = () => { loadingEl.textContent = 'Could not load image.'; };
+          img2.src = url;
+        });
+      };
+      img.src = imgSrc;
+    }
+
+    if (src.startsWith('data:') || src.startsWith('blob:')) {
+      loadImage(src);
+    } else {
+      loadImage(src);
+    }
+  }
 
   function positionOverlay(el) {
     const rect = el.getBoundingClientRect();
@@ -228,6 +593,23 @@ if (window.__imgGrabberLoaded) {
     return `${rw}:${rh}`;
   }
 
+  function decodeEmbeddedUrl(src) {
+    // Many CDNs (Brave, Google, etc.) base64-encode the real image URL inside their proxy path.
+    // Walk path segments and return the first one that decodes to an http URL.
+    try {
+      const path = src.split('?')[0].split('/');
+      for (let i = path.length - 1; i >= 0; i--) {
+        const seg = path[i].replace(/-/g, '+').replace(/_/g, '/');
+        if (seg.length < 16) continue;
+        try {
+          const decoded = atob(seg);
+          if (decoded.startsWith('http')) return decoded;
+        } catch(e) {}
+      }
+    } catch(e) {}
+    return null;
+  }
+
   function formatBadge(src, mime) {
     
     let fmt = '';
@@ -241,7 +623,10 @@ if (window.__imgGrabberLoaded) {
       else if (mime.includes('mp4') || mime.includes('webm')) fmt = 'VID';
     }
     if (!fmt && src) {
-      const ext = src.split('?')[0].split('.').pop().toLowerCase();
+      // Try to decode a base64-embedded real URL first (Brave, Google image proxies, etc.)
+      const realUrl = decodeEmbeddedUrl(src);
+      const urlToParse = realUrl || src;
+      const ext = urlToParse.split('?')[0].split('.').pop().toLowerCase();
       const map = { png:'PNG', jpg:'JPG', jpeg:'JPG', gif:'GIF', webp:'WebP', svg:'SVG', avif:'AVIF' };
       fmt = map[ext] || '';
     }
@@ -306,6 +691,38 @@ if (window.__imgGrabberLoaded) {
     img.src = src;
   }
 
+  function refreshDimsChip(src, mime) {
+    if (!colorChip || colorChip.style.display === 'none') return;
+    if (colorChip.dataset.src !== src) return;
+    // Update the fmt span if mime resolves a better format
+    const fmt = (() => {
+      if (mime) {
+        if (mime.includes('svg'))  return 'SVG';
+        if (mime.includes('gif'))  return 'GIF';
+        if (mime.includes('webp')) return 'WebP';
+        if (mime.includes('jpeg') || mime.includes('jpg')) return 'JPG';
+        if (mime.includes('png'))  return 'PNG';
+        if (mime.includes('avif')) return 'AVIF';
+        if (mime.includes('mp4') || mime.includes('webm')) return 'VID';
+      }
+      return '';
+    })();
+    if (!fmt) return;
+    let fmtEl = colorChip.querySelector('.igrab-chip-fmt');
+    if (fmtEl) {
+      fmtEl.textContent = fmt;
+    } else {
+      const sep = document.createElement('span');
+      sep.className = 'igrab-chip-sep';
+      sep.textContent = '·';
+      const span = document.createElement('span');
+      span.className = 'igrab-chip-fmt';
+      span.textContent = fmt;
+      colorChip.appendChild(sep);
+      colorChip.appendChild(span);
+    }
+  }
+
   function fetchSizeAndMime(src, w, h) {
     if (!src || src.startsWith('data:') || src.startsWith('blob:')) return;
     
@@ -314,6 +731,7 @@ if (window.__imgGrabberLoaded) {
       const mime = res.mimeType || '';
       const dimsEl = document.getElementById('__igrab_dims__');
       if (dimsEl) setDimsEl(w, h, null, mime, src);
+      refreshDimsChip(src, mime);
     });
     
     fetch(src, { method: 'HEAD' }).then(r => {
@@ -322,18 +740,56 @@ if (window.__imgGrabberLoaded) {
       if (!len && !mime) return;
       const dimsEl = document.getElementById('__igrab_dims__');
       if (dimsEl) setDimsEl(w, h, len ? parseInt(len, 10) : null, mime || null, src);
+      refreshDimsChip(src, mime || null);
     }).catch(() => {});
   }
 
-  function showTooltip(clientX, clientY, src, isLocked) {
+  function showTooltip(clientX, clientY, src, isLocked, clickX, clickY) {
     const isInline = src.startsWith('blob:') || src.startsWith('data:');
     const label = isInline ? '(inline / canvas / SVG)' : src;
     const shortLabel = label.length > 55 ? label.slice(0, 52) + '…' : label;
+
+    // Sample pixel colour at click position for locked elements.
+    // lockedEl may be a wrapper div/canvas/etc — find the nearest <img> inside it first.
+    let sampledHex = null;
+    if (isLocked && lockedEl && clickX !== undefined && clickY !== undefined) {
+      const tag = lockedEl.tagName && lockedEl.tagName.toUpperCase();
+      let sampleTarget = null;
+      if (tag === 'IMG') {
+        sampleTarget = lockedEl;
+      } else {
+        // Walk into the element for a child <img>
+        sampleTarget = (lockedEl.querySelector && lockedEl.querySelector('img')) ||
+                       (lockedEl.parentElement && lockedEl.parentElement.querySelector('img')) || null;
+      }
+      if (sampleTarget) {
+        sampledHex = samplePixelAt(clickX, clickY, sampleTarget);
+      }
+      // Last resort: reuse whatever colour the live chip was showing before lock
+      if (!sampledHex && colorChip && colorChip.style.display !== 'none') {
+        const chipLabel = colorChip.querySelector('.igrab-chip-label');
+        if (chipLabel && /^#[0-9A-Fa-f]{6}$/.test(chipLabel.textContent)) {
+          sampledHex = chipLabel.textContent;
+        }
+      }
+    }
+
+    const colorRowHtml = isLocked
+      ? (sampledHex
+          ? `<div class="igrab-color-row" id="__igrab_color_row__">
+               <span class="igrab-color-swatch" style="background:${sampledHex}"></span>
+               <span class="igrab-color-hex">${sampledHex}</span>
+               <button class="igrab-btn igrab-color-copy">Copy</button>
+             </div>`
+          : '')
+      : '';
 
     tooltip.innerHTML = `
       <div class="igrab-title">${isLocked ? '🔒 Locked' : '⊕ PixelPull'}</div>
       <div class="igrab-url" title="${isInline ? 'Inline image' : src}">${shortLabel}</div>
       ${isLocked ? '<div class="igrab-dims" id="__igrab_dims__">—</div>' : ''}
+      ${colorRowHtml}
+      ${isLocked ? '<div class="igrab-exif-row" id="__igrab_exif_row__" style="display:none"><span class="igrab-exif-toggle">▸ EXIF</span><div class="igrab-exif-body" style="display:none"></div></div>' : ''}
       <div class="igrab-actions">
         <button class="igrab-btn igrab-copy-url"${isInline ? ' disabled' : ''}>Copy URL</button>
         <button class="igrab-btn igrab-copy-img">Copy Image</button>
@@ -342,6 +798,7 @@ if (window.__imgGrabberLoaded) {
         <button class="igrab-btn igrab-download">⬇ Download</button>
         <button class="igrab-btn igrab-open-tab">↗ Open Tab</button>
       </div>
+      ${isLocked ? '<div class="igrab-actions igrab-actions-row3"><button class="igrab-btn igrab-crop-btn">✂ Crop Image</button></div>' : ''}
       <div class="igrab-hint">${isLocked
         ? '<kbd>Esc</kbd> or click to unlock &nbsp;•&nbsp; then <kbd>Esc</kbd> to exit'
         : 'Click image to lock &nbsp;•&nbsp; <kbd>Esc</kbd> to exit'
@@ -352,6 +809,56 @@ if (window.__imgGrabberLoaded) {
     if (isLocked) {
       populateDimensions(src, lockedEl);
       showThumbCorner(src);
+
+      // Colour row copy button
+      const colorCopyBtn = document.getElementById('__igrab_color_row__')?.querySelector('.igrab-color-copy');
+      if (colorCopyBtn && sampledHex) {
+        colorCopyBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(sampledHex).then(() => {
+            colorCopyBtn.textContent = 'Copied ✓';
+            setTimeout(() => { colorCopyBtn.textContent = 'Copy'; }, 1500);
+          }).catch(() => {});
+        });
+      }
+
+      // --- Prompt 2 Feature 2: EXIF row ---
+      const isJpeg = src && !src.startsWith('data:') && !src.startsWith('blob:') &&
+        (src.toLowerCase().includes('.jpg') || src.toLowerCase().includes('.jpeg') ||
+         src.toLowerCase().includes('format=jpg') || src.toLowerCase().includes('format:jpg'));
+      const exifRow = document.getElementById('__igrab_exif_row__');
+      if (exifRow && isJpeg) {
+        exifRow.style.display = 'block';
+        let exifFetched = false;
+        const toggle   = exifRow.querySelector('.igrab-exif-toggle');
+        const body     = exifRow.querySelector('.igrab-exif-body');
+        let expanded = false;
+        toggle.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          expanded = !expanded;
+          toggle.textContent = (expanded ? '▾' : '▸') + ' EXIF';
+          body.style.display = expanded ? 'block' : 'none';
+          if (expanded && !exifFetched) {
+            exifFetched = true;
+            body.textContent = 'Loading…';
+            chrome.runtime.sendMessage({ action: 'fetchPartial', url: src }, (res) => {
+              if (chrome.runtime.lastError || !res || res.error) {
+                body.textContent = 'Could not fetch EXIF data.';
+                return;
+              }
+              const bytes = new Uint8Array(res.data);
+              const exif  = parseExifBytes(bytes);
+              if (!exif) {
+                body.textContent = 'No EXIF data found.';
+              } else {
+                body.innerHTML = Object.entries(exif)
+                  .map(([k, v]) => `<div class="igrab-exif-kv"><span class="igrab-exif-key">${k}</span><span class="igrab-exif-val">${v}</span></div>`)
+                  .join('');
+              }
+            });
+          }
+        });
+      }
     } else {
       removeThumbCorner();
     }
@@ -400,7 +907,13 @@ if (window.__imgGrabberLoaded) {
       window.open(src, '_blank');
     };
 
-    
+    if (isLocked) {
+      tooltip.querySelector('.igrab-crop-btn').onclick = (e) => {
+        e.stopPropagation();
+        openCropModal(src, lockedEl);
+      };
+    }
+
     if (isLocked) probeAndWarnIfAnimated(src);
   }
 
@@ -431,7 +944,7 @@ if (window.__imgGrabberLoaded) {
     chrome.runtime.sendMessage({ action: 'sniffMime', url: src }, (res) => {
       if (chrome.runtime.lastError || !res || res.error) return;
       const mime = res.mimeType || '';
-      const isAnimated = mime.includes('gif') || mime.startsWith('video/') || mime === 'application/octet-stream';
+      const isAnimated = mime.includes('gif') || mime.startsWith('video/');
       if (isAnimated) warnAndBlock();
     });
   }
@@ -450,7 +963,7 @@ if (window.__imgGrabberLoaded) {
       
       const mightBeGif = blob.type === 'image/gif' || src.toLowerCase().includes('.gif');
       
-      const isVideo = blob.type.startsWith('video/') || blob.type === 'application/octet-stream';
+      const isVideo = blob.type.startsWith('video/');
 
       const isGif = await (async () => {
         if (mightBeGif) return true;
@@ -534,39 +1047,145 @@ if (window.__imgGrabberLoaded) {
     return 'png';
   }
 
-  async function downloadImage(src) {
+  // --- Prompt 2 Feature 2: minimal EXIF parser (no libraries) ---
+  function parseExifBytes(bytes) {
+    // bytes is Uint8Array
+    if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) return null; // not JPEG
+
+    let i = 2;
+    while (i < bytes.length - 4) {
+      if (bytes[i] !== 0xFF) break;
+      const marker = (bytes[i] << 8) | bytes[i + 1];
+      const segLen  = (bytes[i + 2] << 8) | bytes[i + 3];
+      if (marker === 0xFFE1) {
+        // APP1 — check for 'Exif\0\0'
+        const magic = String.fromCharCode(bytes[i+4], bytes[i+5], bytes[i+6], bytes[i+7]);
+        if (magic !== 'Exif') return null;
+        const tiffStart = i + 10; // after FF E1 + length (2) + 'Exif\0\0' (6)
+        return parseTiff(bytes, tiffStart);
+      }
+      i += 2 + segLen;
+    }
+    return null;
+  }
+
+  function parseTiff(bytes, base) {
+    const bo = String.fromCharCode(bytes[base], bytes[base + 1]);
+    const le = bo === 'II';
+
+    function r16(off) {
+      const a = bytes[base + off], b = bytes[base + off + 1];
+      return le ? (a | (b << 8)) : ((a << 8) | b);
+    }
+    function r32(off) {
+      const a = bytes[base + off], b = bytes[base + off + 1],
+            c = bytes[base + off + 2], d = bytes[base + off + 3];
+      return le ? (a | (b << 8) | (c << 16) | (d * 16777216))
+                : ((a * 16777216) | (b << 16) | (c << 8) | d);
+    }
+    function readAscii(off, len) {
+      let s = '';
+      for (let k = 0; k < len - 1; k++) {
+        const ch = bytes[base + off + k];
+        if (ch === 0) break;
+        s += String.fromCharCode(ch);
+      }
+      return s.trim();
+    }
+
+    const ifdOffset = r32(4);
+    const nEntries  = r16(ifdOffset);
+    const result    = {};
+    const want      = { 0x010F: 'Make', 0x0110: 'Model', 0x9003: 'DateTimeOriginal' };
+
+    for (let n = 0; n < nEntries; n++) {
+      const eOff  = ifdOffset + 2 + n * 12;
+      const tag   = r16(eOff);
+      if (!want[tag]) continue;
+      const type  = r16(eOff + 2);
+      const count = r32(eOff + 4);
+      if (type === 2) { // ASCII
+        const valueOff = count <= 4 ? eOff + 8 : r32(eOff + 8);
+        result[want[tag]] = readAscii(valueOff, count);
+      }
+    }
+    return Object.keys(result).length ? result : null;
+  }
+
+  async function downloadImage(src, forceMime, forceExt) {
     flash('Downloading…');
 
-    
+    async function convertBlob(blob, mime, ext) {
+      if (!mime) return { blob, ext: ext || extFromMime(blob.type) };
+      return new Promise((resolve) => {
+        const img = new Image();
+        const url = URL.createObjectURL(blob);
+        img.onload = () => {
+          const c = document.createElement('canvas');
+          c.width = img.naturalWidth; c.height = img.naturalHeight;
+          c.getContext('2d').drawImage(img, 0, 0);
+          URL.revokeObjectURL(url);
+          const quality = mime === 'image/jpeg' ? 0.92 : undefined;
+          c.toBlob(b => resolve({ blob: b, ext }), mime, quality);
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); resolve({ blob, ext: extFromMime(blob.type) }); };
+        img.src = url;
+      });
+    }
+
+    // --- Prompt 1: build alt-text base name ---
+    function sanitizeAlt(text) {
+      if (!text) return '';
+      return text
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_]+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 60);
+    }
+    const altBase = (lockedEl && lockedEl.tagName && lockedEl.tagName.toUpperCase() === 'IMG')
+      ? sanitizeAlt(lockedEl.alt)
+      : '';
+
     if (src.startsWith('data:')) {
       try {
         const res = await fetch(src);
         const blob = await res.blob();
-        saveBlobAs(blob, 'image.' + extFromMime(blob.type));
+        const { blob: out, ext } = await convertBlob(blob, forceMime, forceExt);
+        saveBlobAs(out, (altBase || 'image') + '.' + ext);
         flash('Download started ✓');
       } catch(e) { flash('Could not download inline image'); }
       return;
     }
 
-    
-    
-    
-    
-    
-
-    
     const rawName = decodeURIComponent(src.split('/').pop().split('?')[0]);
     const urlHasExt = rawName && rawName.match(/\.[a-z]{2,5}$/i);
-    let filename = urlHasExt ? rawName : null;
+    // Priority: alt text > URL slug > null (will fall through to sniffMime)
+    let filename = altBase
+      ? null   // we'll attach the ext after mime-sniff below
+      : (urlHasExt ? rawName : null);
 
-    
-    
-    const doDownload = (fname) => {
+    if (forceMime && forceExt) {
+      const base = altBase || (filename ? filename.replace(/\.[^.]+$/, '') : 'image');
+      filename = `${base}.${forceExt}`;
+    } else if (altBase) {
+      // ext not yet known — keep filename null so we sniff below, but store altBase for use there
+      filename = null;
+    }
+
+    const doDownload = async (fname, blobOverride) => {
+      if (blobOverride) {
+        saveBlobAs(blobOverride, fname);
+        flash('Download started ✓');
+        return;
+      }
       chrome.runtime.sendMessage({ action: 'download', url: src, filename: fname }, (dlRes) => {
         if (chrome.runtime.lastError || (dlRes && dlRes.error)) {
-          
-          fetch(src).then(r => r.blob()).then(blob => {
-            saveBlobAs(blob, fname);
+          fetch(src).then(r => r.blob()).then(async blob => {
+            const { blob: out, ext } = await convertBlob(blob, forceMime, forceExt);
+            saveBlobAs(out, fname);
             flash('Download started ✓');
           }).catch(() => {
             flash('Blocked — opening in tab');
@@ -578,18 +1197,36 @@ if (window.__imgGrabberLoaded) {
       });
     };
 
+    if (forceMime) {
+      flash('Converting…');
+      chrome.runtime.sendMessage({ action: 'fetchBlob', url: src }, async (res) => {
+        if (chrome.runtime.lastError || !res || res.error) {
+          flash('Could not fetch — try Original');
+          return;
+        }
+        try {
+          const blob = new Blob([new Uint8Array(res.data)], { type: res.mimeType || 'image/png' });
+          const { blob: out } = await convertBlob(blob, forceMime, forceExt);
+          saveBlobAs(out, filename || `image.${forceExt}`);
+          flash('Download started ✓');
+        } catch(err) {
+          flash('Conversion failed');
+        }
+      });
+      return;
+    }
+
     if (filename) {
-      
       doDownload(filename);
     } else {
-      
       chrome.runtime.sendMessage({ action: 'sniffMime', url: src }, (res) => {
+        let ext = 'png';
         if (!chrome.runtime.lastError && res && !res.error) {
-          const ext = extFromMime(res.mimeType);
-          filename = 'image.' + ext;
-        } else {
-          filename = 'image.png';
+          ext = extFromMime(res.mimeType);
         }
+        filename = altBase
+          ? `${altBase}.${ext}`
+          : (urlHasExt ? rawName : `image.${ext}`);
         doDownload(filename);
       });
     }
@@ -660,6 +1297,7 @@ if (window.__imgGrabberLoaded) {
 
   function onMouseMove(e) {
     if (!active || locked) return;
+    if (document.getElementById('__igrab_crop_modal__')) return;
 
     
     if (hud && hud.contains(e.target)) return;
@@ -681,20 +1319,25 @@ if (window.__imgGrabberLoaded) {
       lockedEl  = highlightEl;
       lockedSrc = foundSrc;
       showTooltip(e.clientX, e.clientY, foundSrc, false);
+      // Show color chip for all image elements; non-IMG shows — (can't sample pixels)
+      updateColorChip(e.clientX, e.clientY, highlightEl, foundSrc);
+
     } else {
       lockedEl = lockedSrc = null;
       if (overlay) overlay.style.display = 'none';
       if (tooltip) tooltip.style.display = 'none';
+      hideColorChip();
     }
   }
 
   function onMouseClick(e) {
     if (!active) return;
-    const path = e.composedPath ? e.composedPath() : [];
+    if (document.getElementById('__igrab_crop_modal__')) return;
+    const path = e.composedPath ? e.composedPath() : [e.target];
 
-    
-    if (tooltip && tooltip.contains(e.target)) return;
-    if (hud     && hud.contains(e.target))     return;
+    if (tooltip && path.includes(tooltip)) return;
+    if (hud     && path.includes(hud))     return;
+    if (thumbCorner && path.includes(thumbCorner)) return;
 
     if (locked) {
       locked = false;
@@ -708,7 +1351,8 @@ if (window.__imgGrabberLoaded) {
     } else if (lockedSrc) {
       locked = true;
       overlay.classList.add('igrab-locked');
-      showTooltip(e.clientX, e.clientY, lockedSrc, true);
+      hideColorChip();
+      showTooltip(e.clientX, e.clientY, lockedSrc, true, e.clientX, e.clientY);
       updateHud();
       e.preventDefault(); e.stopPropagation();
     }
@@ -718,6 +1362,11 @@ if (window.__imgGrabberLoaded) {
 
   function onKeydown(e) {
     if (!active) return;
+    const cropModal = document.getElementById('__igrab_crop_modal__');
+    if (cropModal) {
+      if (e.key === 'Escape') cropModal.remove();
+      return;
+    }
     if (e.key === 'Escape') {
       if (locked) {
         locked = false;
@@ -738,9 +1387,10 @@ if (window.__imgGrabberLoaded) {
   function activate() {
     if (active) return;
     active = true; locked = false;
-    if (!tooltip) tooltip = createTooltip();
-    if (!overlay) overlay = createOverlay();
-    if (!hud)     hud     = createHud();
+    if (!tooltip)   tooltip   = createTooltip();
+    if (!overlay)   overlay   = createOverlay();
+    if (!hud)       hud       = createHud();
+    if (!colorChip) colorChip = createColorChip();
     document.addEventListener('mousemove',    onMouseMove,   true);
     document.addEventListener('click',        onMouseClick,  true);
     document.addEventListener('contextmenu',  onContextMenu, true);
@@ -761,6 +1411,7 @@ if (window.__imgGrabberLoaded) {
     document.body.style.cursor = '';
     if (overlay) { overlay.style.display = 'none'; overlay.classList.remove('igrab-locked'); }
     if (tooltip) tooltip.style.display = 'none';
+    hideColorChip();
     
     if (hud) {
       hud.style.transition = 'opacity 0.2s ease, transform 0.2s ease';

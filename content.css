@@ -60,7 +60,7 @@
   font-size: 11px;
   word-break: break-all;
   margin-bottom: 6px;
-  max-height: 46px;
+  max-height: 60px;
   overflow: hidden;
 }
 
@@ -351,4 +351,465 @@
 }
 .igrab-hud-close:hover {
   color: #dc322f;
+}
+#__igrab_crop_modal__ {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: igrab-fadein 0.15s ease;
+}
+
+.igrab-crop-inner {
+  background: #073642;
+  border: 1px solid #b58900;
+  border-radius: 6px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.8);
+  padding: 14px;
+  max-width: 560px;
+  width: calc(100vw - 40px);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.igrab-crop-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.igrab-crop-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #b58900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+}
+
+.igrab-crop-subtitle {
+  font-size: 10px;
+  color: #586e75;
+  letter-spacing: 0.06em;
+  flex: 1;
+}
+
+.igrab-crop-close {
+  background: transparent;
+  border: none;
+  color: #586e75;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  transition: color 0.15s;
+  font-family: inherit;
+}
+.igrab-crop-close:hover { color: #dc322f; }
+
+.igrab-crop-canvas-wrap {
+  position: relative;
+  background: #002B36;
+  border: 1px solid #0a4f5c;
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: crosshair;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  margin-bottom: 8px;
+}
+
+#__igrab_crop_canvas__ {
+  display: block;
+  max-width: 100%;
+  user-select: none;
+  pointer-events: none;
+}
+
+.igrab-crop-selection {
+  position: absolute;
+  border: 1.5px solid #5FFFBF;
+  box-shadow: 0 0 0 1px rgba(95,255,191,0.2), inset 0 0 0 9999px rgba(95,255,191,0.08);
+  display: none;
+  pointer-events: none;
+}
+
+.igrab-crop-loading {
+  position: absolute;
+  color: #586e75;
+  font-size: 11px;
+  font-family: 'SF Mono', monospace;
+  letter-spacing: 0.06em;
+}
+
+.igrab-crop-dims {
+  font-size: 10px;
+  color: #2aa198;
+  letter-spacing: 0.06em;
+  margin-bottom: 8px;
+  padding: 0 2px;
+  min-height: 14px;
+}
+
+.igrab-crop-fmt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.igrab-crop-fmt-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #586e75;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+}
+
+.igrab-crop-fmt-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.igrab-fmt-pill {
+  background: #002B36;
+  border: 1px solid #0a4f5c;
+  border-radius: 2px;
+  color: #586e75;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.igrab-fmt-pill:hover { border-color: #93a1a1; color: #93a1a1; }
+.igrab-fmt-pill.igrab-fmt-pill-active {
+  background: #0a4f5c;
+  border-color: #5FFFBF;
+  color: #5FFFBF;
+}
+
+.igrab-crop-actions {
+  display: flex;
+  gap: 5px;
+}
+
+.igrab-crop-copy {
+  flex: 1;
+  background: #0a4f5c;
+  color: #5FFFBF;
+  border-color: #5FFFBF44;
+  padding: 7px 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid;
+  transition: all 0.15s;
+}
+.igrab-crop-copy:hover:not(:disabled) { background: #5FFFBF; color: #002B36; border-color: #5FFFBF; }
+.igrab-crop-copy:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.igrab-crop-download {
+  flex: 1;
+  background: #0a4f5c;
+  color: #6c71c4;
+  border-color: #6c71c444;
+  padding: 7px 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid;
+  transition: all 0.15s;
+}
+.igrab-crop-download:hover:not(:disabled) { background: #6c71c4; color: #002B36; border-color: #6c71c4; }
+.igrab-crop-download:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.igrab-crop-reset {
+  background: #0a4f5c;
+  color: #586e75;
+  border-color: #586e7544;
+  padding: 7px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid;
+  transition: all 0.15s;
+}
+.igrab-crop-reset:hover { color: #93a1a1; border-color: #93a1a144; }
+
+#__img_grabber_tooltip__ .igrab-dl-fmt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+#__img_grabber_tooltip__ .igrab-dl-fmt-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #586e75;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  flex-shrink: 0;
+}
+
+#__img_grabber_tooltip__ .igrab-dl-fmt-pills {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+
+#__img_grabber_tooltip__ .igrab-dl-pill {
+  background: #002B36;
+  border: 1px solid #0a4f5c;
+  border-radius: 2px;
+  color: #586e75;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+#__img_grabber_tooltip__ .igrab-dl-pill:hover { border-color: #93a1a1; color: #93a1a1; }
+#__img_grabber_tooltip__ .igrab-dl-pill.igrab-dl-pill-active {
+  background: #0a4f5c;
+  border-color: #6c71c4;
+  color: #6c71c4;
+}
+
+#__img_grabber_tooltip__ .igrab-actions-row3 {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+#__img_grabber_tooltip__ .igrab-crop-btn {
+  flex: 1;
+  padding: 6px 0;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  border: 1px solid #b5890044;
+  background: #0a4f5c;
+  color: #b58900;
+}
+#__img_grabber_tooltip__ .igrab-crop-btn:hover {
+  background: #b58900;
+  color: #002B36;
+  border-color: #b58900;
+}
+
+#__img_grabber_thumb_corner__ .igrab-tc-hint {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.65);
+  color: #b58900;
+  font-size: 9px;
+  font-family: 'SF Mono', monospace;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 2px 0;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+#__img_grabber_thumb_corner__:hover .igrab-tc-hint { opacity: 1; }
+#__img_grabber_thumb_corner__ { cursor: pointer; }
+/* ── Prompt 2 Feature 1: Colour row inside locked tooltip ── */
+#__img_grabber_tooltip__ .igrab-color-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  padding: 5px 8px;
+  background: #002B36;
+  border: 1px solid #0a4f5c;
+  border-radius: 3px;
+}
+
+#__img_grabber_tooltip__ .igrab-color-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+
+#__img_grabber_tooltip__ .igrab-color-hex {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #93a1a1;
+  letter-spacing: 0.06em;
+  flex: 1;
+  min-width: 0;
+}
+
+#__img_grabber_tooltip__ .igrab-color-copy {
+  background: #0a4f5c;
+  color: #5FFFBF;
+  border: 1px solid #5FFFBF44;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex: none;
+}
+#__img_grabber_tooltip__ .igrab-color-copy:hover {
+  background: #5FFFBF;
+  color: #002B36;
+  border-color: #5FFFBF;
+}
+
+/* ── Unified floating hover chip (color + dims + format) ── */
+#__img_grabber_colorchip__ {
+  position: absolute;
+  z-index: 2147483646;
+  display: none;
+  align-items: center;
+  gap: 0;
+  background: rgba(0, 20, 26, 0.88);
+  border: 1px solid rgba(95, 255, 191, 0.15);
+  border-radius: 20px;
+  padding: 5px 12px 5px 7px;
+  font-family: 'SF Mono', 'Fira Code', 'Inconsolata', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04) inset;
+  user-select: none;
+  backdrop-filter: blur(8px);
+}
+
+#__img_grabber_colorchip__ .igrab-chip-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.3);
+  flex-shrink: 0;
+  margin-right: 7px;
+}
+
+#__img_grabber_colorchip__ .igrab-chip-label {
+  color: #5FFFBF;
+  margin-right: 8px;
+}
+
+#__img_grabber_colorchip__ .igrab-chip-dims {
+  color: #586e75;
+  font-weight: 500;
+}
+
+#__img_grabber_colorchip__ .igrab-chip-dims-only {
+  color: #2aa198;
+}
+
+#__img_grabber_colorchip__ .igrab-chip-sep {
+  color: #1a4a55;
+  font-weight: 400;
+  margin: 0 6px;
+  font-size: 10px;
+}
+
+#__img_grabber_colorchip__ .igrab-chip-fmt {
+  color: #2a6a70;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+#__img_grabber_colorchip__ .igrab-chip-blocked {
+  color: #586e75;
+}
+
+/* hide the boxed badge inside the hover chip — use plain text instead */
+#__img_grabber_colorchip__ .igrab-fmt-badge {
+  display: none;
+}
+
+/* ── Prompt 2 Feature 2: EXIF row ── */
+#__img_grabber_tooltip__ .igrab-exif-row {
+  margin-bottom: 6px;
+}
+
+#__img_grabber_tooltip__ .igrab-exif-toggle {
+  font-size: 10px;
+  color: #2aa198;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  user-select: none;
+  transition: color 0.15s;
+}
+#__img_grabber_tooltip__ .igrab-exif-toggle:hover {
+  color: #5FFFBF;
+}
+
+#__img_grabber_tooltip__ .igrab-exif-body {
+  margin-top: 5px;
+  background: #002B36;
+  border: 1px solid #0a4f5c;
+  border-radius: 3px;
+  padding: 5px 8px;
+  font-size: 10px;
+}
+
+#__img_grabber_tooltip__ .igrab-exif-kv {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 3px;
+  line-height: 1.5;
+}
+#__img_grabber_tooltip__ .igrab-exif-kv:last-child {
+  margin-bottom: 0;
+}
+
+#__img_grabber_tooltip__ .igrab-exif-key {
+  color: #586e75;
+  flex-shrink: 0;
+  min-width: 110px;
+}
+
+#__img_grabber_tooltip__ .igrab-exif-val {
+  color: #93a1a1;
+  word-break: break-all;
 }

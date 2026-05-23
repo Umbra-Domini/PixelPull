@@ -63,6 +63,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; 
   }
 
+  // fetchPartial — first 64KB via Range header for EXIF parsing
+  if (msg.action === 'fetchPartial') {
+    fetch(msg.url, { headers: { Range: 'bytes=0-65535' } })
+      .then(r => {
+        if (!r.ok && r.status !== 206) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer();
+      })
+      .then(buf => sendResponse({ data: Array.from(new Uint8Array(buf)) }))
+      .catch(err => sendResponse({ error: err.message }));
+    return true;
+  }
+
   
   if (msg.action === 'captureAndCrop') {
     const tabId = sender.tab?.id;
