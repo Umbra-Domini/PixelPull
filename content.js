@@ -178,9 +178,10 @@ if (window.__imgGrabberLoaded) {
     const tag = el.tagName && el.tagName.toUpperCase();
 
     if (tag === 'IMG') {
-      return el.currentSrc || el.src || el.dataset.src || el.dataset.lazySrc
+      const raw = el.currentSrc || el.src || el.dataset.src || el.dataset.lazySrc
         || el.getAttribute('data-src') || el.getAttribute('data-original')
         || el.getAttribute('data-lazy') || null;
+      return upgradeCanvaUrl(raw);
     }
 
     if (tag === 'CANVAS') {
@@ -219,6 +220,53 @@ if (window.__imgGrabberLoaded) {
     } catch(e) {}
 
     return null;
+  }
+
+  // Canva loads a low-quality preview GIF in the <img src> but fetches the full-quality
+  // GIF separately via JS. Both share the same resource ID in the URL.
+  // We find the full-quality one by scanning performance.getEntriesByType('resource')
+  // for a larger GIF with the same resource ID — the browser has already fetched it.
+  function upgradeCanvaUrl(src) {
+    if (!src) return src;
+    // Already a Canva /v/ GIF — check if a better one was loaded
+    const canvaMatch = src.match(/^(https:\/\/video-public\.canva\.com\/([^/]+)\/v\/)([^.]+)\.gif/);
+    if (canvaMatch) {
+      const betterUrl = findBetterCanvaGif(src, canvaMatch[2]);
+      return betterUrl || src;
+    }
+    // Legacy: poster PNG
+    const posterMatch = src.match(/^(https:\/\/video-public\.canva\.com\/([^/]+))\/p\/([^.]+)\.png/);
+    if (posterMatch) {
+      const betterUrl = findBetterCanvaGif(null, posterMatch[2]);
+      if (betterUrl) return betterUrl;
+      return posterMatch[1] + '/v/' + posterMatch[3] + '.gif';
+    }
+    return src;
+  }
+
+  // Scan performance resource entries for a Canva GIF with the same resource ID
+  // that is larger than the current one (i.e. the full-quality version).
+  function findBetterCanvaGif(currentSrc, resourceId) {
+    try {
+      const entries = performance.getEntriesByType('resource');
+      let bestUrl = null;
+      let bestSize = 0;
+      for (const entry of entries) {
+        const url = entry.name;
+        if (!url.includes('video-public.canva.com')) continue;
+        if (!url.includes('/' + resourceId + '/')) continue;
+        if (!url.endsWith('.gif')) continue;
+        if (url === currentSrc) continue;
+        const size = entry.transferSize || entry.encodedBodySize || 0;
+        if (size > bestSize) {
+          bestSize = size;
+          bestUrl = url;
+        }
+      }
+      return bestUrl;
+    } catch(e) {
+      return null;
+    }
   }
 
   function getImageSrc(startEl) {
@@ -749,29 +797,11 @@ if (window.__imgGrabberLoaded) {
     const label = isInline ? '(inline / canvas / SVG)' : src;
     const shortLabel = label.length > 55 ? label.slice(0, 52) + '…' : label;
 
-    // Sample pixel colour at click position for locked elements.
-    // lockedEl may be a wrapper div/canvas/etc — find the nearest <img> inside it first.
+    // Sample pixel colour at click position for locked <img> elements
     let sampledHex = null;
-    if (isLocked && lockedEl && clickX !== undefined && clickY !== undefined) {
-      const tag = lockedEl.tagName && lockedEl.tagName.toUpperCase();
-      let sampleTarget = null;
-      if (tag === 'IMG') {
-        sampleTarget = lockedEl;
-      } else {
-        // Walk into the element for a child <img>
-        sampleTarget = (lockedEl.querySelector && lockedEl.querySelector('img')) ||
-                       (lockedEl.parentElement && lockedEl.parentElement.querySelector('img')) || null;
-      }
-      if (sampleTarget) {
-        sampledHex = samplePixelAt(clickX, clickY, sampleTarget);
-      }
-      // Last resort: reuse whatever colour the live chip was showing before lock
-      if (!sampledHex && colorChip && colorChip.style.display !== 'none') {
-        const chipLabel = colorChip.querySelector('.igrab-chip-label');
-        if (chipLabel && /^#[0-9A-Fa-f]{6}$/.test(chipLabel.textContent)) {
-          sampledHex = chipLabel.textContent;
-        }
-      }
+    if (isLocked && lockedEl && lockedEl.tagName && lockedEl.tagName.toUpperCase() === 'IMG' &&
+        clickX !== undefined && clickY !== undefined) {
+      sampledHex = samplePixelAt(clickX, clickY, lockedEl);
     }
 
     const colorRowHtml = isLocked
@@ -1113,6 +1143,16 @@ if (window.__imgGrabberLoaded) {
   }
 
   async function downloadImage(src, forceMime, forceExt) {
+    // At download time, re-check performance entries for a better Canva GIF URL.
+    // This catches cases where Canva finished loading the full-quality version
+    // after the user hovered (which is when upgradeCanvaUrl first ran).
+    if (!forceMime && src && src.includes('video-public.canva.com') && src.endsWith('.gif')) {
+      const canvaMatch = src.match(/video-public\.canva\.com\/([^/]+)\//);
+      if (canvaMatch) {
+        const better = findBetterCanvaGif(src, canvaMatch[1]);
+        if (better) src = better;
+      }
+    }
     flash('Downloading…');
 
     async function convertBlob(blob, mime, ext) {
