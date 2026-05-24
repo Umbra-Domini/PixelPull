@@ -1436,6 +1436,17 @@ if (window.__imgGrabberLoaded) {
     document.addEventListener('contextmenu',  onContextMenu, true);
     document.addEventListener('keydown',      onKeydown,     true);
     document.body.style.cursor = 'crosshair';
+    document.getElementById('__igrab_cursor_style__')?.remove();
+    const _cursorStyle = document.createElement('style');
+    _cursorStyle.id = '__igrab_cursor_style__';
+    _cursorStyle.textContent = `
+      html, html * { cursor: crosshair !important; }
+      #__img_grabber_tooltip__ button,
+      #__img_grabber_tooltip__ .igrab-btn,
+      #__img_grabber_hud__ button,
+      .igrab-hud-close { cursor: pointer !important; }
+    `;
+    document.head.appendChild(_cursorStyle);
     showBanner('PixelPull ON');
   }
 
@@ -1449,6 +1460,7 @@ if (window.__imgGrabberLoaded) {
     document.removeEventListener('contextmenu', onContextMenu, true);
     document.removeEventListener('keydown',     onKeydown,     true);
     document.body.style.cursor = '';
+    document.getElementById('__igrab_cursor_style__')?.remove();
     if (overlay) { overlay.style.display = 'none'; overlay.classList.remove('igrab-locked'); }
     if (tooltip) tooltip.style.display = 'none';
     hideColorChip();
