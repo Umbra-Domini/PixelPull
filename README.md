@@ -23,16 +23,25 @@ It works on images that are hard to grab normally: CSS background images, lazy-l
 
 ## Features
 
-- **Hover detection** - automatically detects images, CSS backgrounds, SVGs, canvas, video posters, and lazy-loaded images as you move your cursor
-- **Click to lock** - click any image to lock onto it and keep the tooltip open for action
-- **Copy URL** - copies the full resolved image URL to your clipboard
-- **Copy Image** - fetches the image and copies it as a PNG to your clipboard, bypassing CORS restrictions via the extension background context
-- **Download** - saves the file directly to your downloads folder using `chrome.downloads`, with correct filename and extension detected from MIME type
-- **GIF / animated image handling** - detects GIFs and video-format animations (MP4, WebM) by MIME type, magic bytes, and URL pattern; warns immediately on lock and disables Copy Image with a permanent message
-- **Image dimensions and file size** - shows `W x H px - size KB` in the tooltip when locked, read from the DOM instantly where possible
-- **Keyboard shortcut** - `Alt+G` to toggle the grabber from anywhere, no popup needed
-- **HUD indicator** - persistent on-screen indicator while active, with a close button
-- **Works inside iframes** - detects images across shadow DOM and nested frames
+- **Hover detection** — automatically detects images, CSS backgrounds, SVGs, canvas, video posters, and lazy-loaded images as you move your cursor
+- **Click to lock** — click any image to lock onto it and keep the tooltip open for action
+- **Copy URL** — copies the full resolved image URL to your clipboard
+- **Copy Image** — fetches the image and copies it as a PNG to your clipboard, bypassing CORS restrictions via the extension background context
+- **Download** — saves the file directly to your downloads folder using `chrome.downloads`, with correct filename and extension detected from MIME type. Downloaded filenames are derived from the image's `alt` text when available, falling back to the URL slug
+- **Crop tool** — click the thumbnail corner preview when locked to open a full crop modal. Draw a selection, choose output format (PNG / JPG / WebP), then copy or download the cropped region
+- **Live colour picker** — a floating chip follows the cursor over any `<img>` element while unlocked, showing the hex colour of the pixel under the cursor along with image dimensions and format. The chip hides when you lock
+- **Colour copy on lock** — when you lock an image, the tooltip shows the hex colour of the pixel you clicked on and a one-click copy button
+- **EXIF data** — for JPEG images, an expandable EXIF row in the locked tooltip fetches and displays camera make, model, and capture date from the image's embedded metadata (no third-party library required)
+- **Format badge** — the tooltip and colour chip both display a coloured format badge (PNG, JPG, GIF, WebP, SVG, AVIF, VID) resolved from MIME type first, then URL extension, with support for base64-encoded proxy URLs (Brave, Google image proxies, etc.)
+- **Aspect ratio** — the dimensions line in the locked tooltip includes the simplified aspect ratio (e.g. `16:9`) alongside pixel dimensions and file size
+- **GIF / animated image handling** — detects GIFs and video-format animations (MP4, WebM) by MIME type, magic bytes, and URL pattern; warns immediately on lock and disables Copy Image with a permanent message
+- **Image dimensions and file size** — shows `W × H px · ratio · size KB [FORMAT]` in the tooltip when locked, read from the DOM instantly where possible and refined via a background HEAD request
+- **Canva upgrade** — detects when a Canva `<img>` is showing a low-quality preview GIF and automatically swaps it for the full-quality version by scanning browser performance entries
+- **Keyboard shortcut** — `Alt+G` to toggle the grabber from anywhere, no popup needed. The shortcut is fully customisable in Settings
+- **HUD indicator** — persistent on-screen indicator while active, with a close button; switches to "Locked" state while an image is locked
+- **Grab history** — up to 10 recently grabbed images are stored and viewable in the popup's history drawer, with thumbnails, dimensions, timestamps, and quick-copy / open-tab actions. History persists across popup opens
+- **Settings drawer** — configure the keyboard shortcut (click the box and press any key combo), auto-exit after action, and hover overlay style (Outline / Dim / Minimal)
+- **Works inside iframes** — detects images across shadow DOM and nested frames
 
 ---
 
@@ -71,19 +80,26 @@ PixelPull is not on the Chrome Web Store. Install it as an unpacked extension:
 
 1. Click the PixelPull icon in your toolbar, or press `Alt+G`
 2. Your cursor changes to a crosshair and the HUD appears in the bottom-right corner
-3. Hover over any image - a tooltip appears with the URL and action buttons
-4. **Click the image to lock** - the tooltip stays open and turns amber
+3. Hover over any image — a floating colour chip shows the pixel colour, dimensions, and format under your cursor
+4. **Click the image to lock** — the tooltip stays open and turns amber, showing dimensions, aspect ratio, file size, format, and the hex colour at the click point
 5. Use the buttons: **Copy URL**, **Copy Image**, **Download**, or **Open Tab**
-6. Press `Esc` or click anywhere to unlock, then `Esc` again to exit
+6. Click **✂ Crop Image** (or the thumbnail preview) to open the crop modal — drag a selection, pick a format, then copy or download the crop
+7. For JPEG images, expand the **EXIF** section to see camera metadata
+8. Press `Esc` or click anywhere to unlock, then `Esc` again to exit
+
+### Popup
+
+- The **history drawer** (clock icon) shows your last 10 grabbed images with thumbnails, dimensions, and timestamps
+- The **settings drawer** (gear icon) lets you customise the keyboard shortcut, toggle auto-exit, and choose the hover overlay style
 
 ### Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
-| `Alt+G` | Toggle PixelPull on/off |
+| `Alt+G` | Toggle PixelPull on/off (customisable in Settings) |
 | `Esc` | Unlock (if locked) / Exit (if unlocked) |
 
-You can change the shortcut at `chrome://extensions/shortcuts`.
+You can also change the shortcut at `chrome://extensions/shortcuts`.
 
 ---
 
@@ -92,11 +108,11 @@ You can change the shortcut at `chrome://extensions/shortcuts`.
 ```
 pixelpull/
 ├── manifest.json       # Extension manifest (v3)
-├── background.js       # Service worker - handles downloads, CORS fetches, screenshots
-├── content.js          # Injected into every page - hover detection, tooltip, actions
-├── content.css         # Tooltip, overlay, HUD, and banner styles
+├── background.js       # Service worker — handles downloads, CORS fetches, screenshots
+├── content.js          # Injected into every page — hover detection, tooltip, colour picker, crop, EXIF
+├── content.css         # Tooltip, overlay, HUD, colour chip, crop modal, and banner styles
 ├── popup.html          # Toolbar popup UI
-├── popup.js            # Popup logic - toggle state, activate/deactivate
+├── popup.js            # Popup logic — toggle state, settings drawer, history drawer
 └── imgs/
     ├── icon16.png
     ├── icon32.png
@@ -111,9 +127,9 @@ pixelpull/
 Some images block direct `fetch()` from the page context. PixelPull uses a fallback chain:
 
 1. **Direct fetch** from content script (works for permissive CORS)
-2. **Background fetch** via `chrome.runtime.sendMessage` - the service worker fetches from extension context, bypassing most CORS restrictions
-3. **`chrome.downloads`** for downloads - streams directly to disk, no blob transfer over the message bus, handles large files without size limits
-4. **Screenshot crop** as a last resort - captures the visible tab and crops to the element's bounding rect
+2. **Background fetch** via `chrome.runtime.sendMessage` — the service worker fetches from extension context, bypassing most CORS restrictions
+3. **`chrome.downloads`** for downloads — streams directly to disk, no blob transfer over the message bus, handles large files without size limits
+4. **Screenshot crop** as a last resort — captures the visible tab and crops to the element's bounding rect
 
 ---
 
@@ -126,14 +142,17 @@ Some images block direct `fetch()` from the page context. PixelPull uses a fallb
 | `clipboardWrite` | Write images and URLs to the clipboard |
 | `downloads` | Save files directly to the downloads folder |
 | `tabs` | Query the active tab for messaging between popup and content script |
+| `storage` | Persist grab history, settings, and per-tab active state across popup opens |
 
 ---
 
 ## Known limitations
 
-- **Animated GIFs / MP4s** - browsers don't support writing animated images to the clipboard. PixelPull detects these and redirects to Download, which preserves the animation
-- **Cross-origin canvases** - `canvas.toDataURL()` throws a security error on tainted canvases; PixelPull falls back to screenshot crop in this case
-- **Chrome only** - built for Chromium-based browsers (Chrome, Edge, Brave). Firefox uses a different extension API for some features
+- **Animated GIFs / MP4s** — browsers don't support writing animated images to the clipboard. PixelPull detects these and redirects to Download, which preserves the animation
+- **Cross-origin canvases** — `canvas.toDataURL()` throws a security error on tainted canvases; PixelPull falls back to screenshot crop in this case
+- **EXIF** — only Make, Model, and DateTimeOriginal fields are parsed, and only for JPEG images with an APP1 segment. RAW, TIFF, and other EXIF carriers are not supported
+- **Colour picker** — pixel sampling requires the `<img>` to be same-origin or CORS-permissive. CORS-tainted images show dimensions and format only, without the hex colour
+- **Chrome only** — built for Chromium-based browsers (Chrome, Edge, Brave). Firefox uses a different extension API for some features
 
 ---
 
