@@ -2,13 +2,14 @@
   "manifest_version": 3,
   "name": "PixelPull",
   "version": "1.1",
-  "description": "Hover over any image or graphic to grab its URL, copy it, or download it — bypasses right-click restrictions.",
+  "description": "Hover over any image or graphic to grab its URL, copy it, or download it \u2014 bypasses right-click restrictions.",
   "permissions": [
     "activeTab",
     "scripting",
     "clipboardWrite",
     "downloads",
-    "tabs"
+    "tabs",
+    "storage"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -21,9 +22,15 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "css": ["content.css"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "content.css"
+      ],
       "run_at": "document_start"
     }
   ],

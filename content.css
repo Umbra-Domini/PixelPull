@@ -813,3 +813,46 @@
   color: #93a1a1;
   word-break: break-all;
 }
+/* ── Overlay styles ──────────────────────────────────────────────────────── */
+
+/* dim: darken everything except the target */
+#__img_grabber_overlay__.igrab-ov-dim {
+  outline: 2px solid #5FFFBF;
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.55),
+    0 0 0 4px rgba(95, 255, 191, 0.15);
+}
+#__img_grabber_overlay__.igrab-ov-dim.igrab-locked {
+  outline-color: #b58900;
+  box-shadow:
+    0 0 0 9999px rgba(0, 0, 0, 0.55),
+    0 0 0 4px rgba(181, 137, 0, 0.2);
+}
+
+/* minimal: just corner brackets, no fill */
+#__img_grabber_overlay__.igrab-ov-minimal {
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+}
+#__img_grabber_overlay__.igrab-ov-minimal::before,
+#__img_grabber_overlay__.igrab-ov-minimal::after {
+  content: '';
+  position: absolute;
+  width: 10px; height: 10px;
+  border-color: #5FFFBF;
+  border-style: solid;
+}
+#__img_grabber_overlay__.igrab-ov-minimal::before {
+  top: -2px; left: -2px;
+  border-width: 2px 0 0 2px;
+}
+#__img_grabber_overlay__.igrab-ov-minimal::after {
+  bottom: -2px; right: -2px;
+  border-width: 0 2px 2px 0;
+}
+#__img_grabber_overlay__.igrab-ov-minimal.igrab-locked::before,
+#__img_grabber_overlay__.igrab-ov-minimal.igrab-locked::after {
+  border-color: #b58900;
+}

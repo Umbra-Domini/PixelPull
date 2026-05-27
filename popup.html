@@ -4,6 +4,26 @@
 <head>
   <meta charset="UTF-8">
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap');
+
+    :root {
+      --bg: #002B36;
+      --surface: #073642;
+      --border: #0a4f5c;
+      --border-hi: #0d6070;
+      --accent: #5FFFBF;
+      --accent-dim: #5FFFBF20;
+      --amber: #b58900;
+      --amber-dim: #b5890018;
+      --muted: #586e75;
+      --text: #93a1a1;
+      --text-hi: #cdd3d3;
+      --red: #dc322f;
+      --teal: #2aa198;
+      --w: 320px;
+      --drawer-w: 320px;
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -11,87 +31,125 @@
     }
 
     body {
-      width: 260px;
-      background: #002B36;
-      color: #93a1a1;
-      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
-      padding: 0;
-      border: 1px solid #0a4f5c;
+      width: var(--w);
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Mono', 'Fira Code', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      overflow: hidden;
+      position: relative;
     }
 
-    /* ── Header ── */
+    /* ── HEADER ─────────────────────────────────────── */
     .header {
-      background: #073642;
-      padding: 12px 14px;
       display: flex;
       align-items: center;
-      gap: 10px;
-      border-bottom: 1px solid #0a4f5c;
+      gap: 8px;
+      padding: 11px 14px 11px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: relative;
+      z-index: 10;
     }
 
-    .logo-icon {
-      width: 32px;
-      height: 32px;
-      background: #002B36;
-      border: 1px solid #5FFFBF44;
-      border-radius: 4px;
+    .logo-wrap {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      transition: border-color .25s, box-shadow .25s;
     }
 
-    .logo-icon.active {
-      border-color: #5FFFBF;
-      box-shadow: 0 0 8px rgba(95, 255, 191, 0.3);
+    .logo-wrap.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-dim), inset 0 0 6px var(--accent-dim);
     }
 
-    .logo-text {
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      color: #5FFFBF;
+    .header-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .h-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.08em;
       text-transform: uppercase;
     }
 
-    .logo-sub {
+    .h-sub {
       font-size: 9px;
-      color: #586e75;
-      letter-spacing: 0.1em;
+      color: var(--muted);
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      margin-top: 2px;
+      margin-top: 1px;
+      white-space: nowrap;
     }
 
-    /* ── Body ── */
-    .body {
-      padding: 14px;
-    }
-
-    /* Status line */
-    .status-line {
+    .header-actions {
       display: flex;
       align-items: center;
-      gap: 7px;
-      margin-bottom: 12px;
-      font-size: 10px;
-      color: #586e75;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      gap: 3px;
+      flex-shrink: 0;
+    }
+
+    .icon-btn {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 5px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color .2s, border-color .2s, background .2s;
+      flex-shrink: 0;
+    }
+
+    .icon-btn:hover {
+      color: var(--text-hi);
+      border-color: var(--border-hi);
+      background: var(--bg);
+    }
+
+    .icon-btn.open {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* ── STATUS BAR ──────────────────────────────────── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
     }
 
     .status-dot {
-      width: 7px;
-      height: 7px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
-      background: #586e75;
+      background: var(--muted);
+      transition: background .2s, box-shadow .2s;
       flex-shrink: 0;
-      transition: background 0.2s, box-shadow 0.2s;
     }
 
     .status-dot.active {
-      background: #5FFFBF;
-      box-shadow: 0 0 6px #5FFFBF;
+      background: var(--accent);
+      box-shadow: 0 0 7px var(--accent);
       animation: pulse 2s ease-in-out infinite;
     }
 
@@ -99,217 +157,752 @@
 
       0%,
       100% {
-        opacity: 1;
+        opacity: 1
       }
 
       50% {
-        opacity: 0.4;
+        opacity: .35
       }
+    }
+
+    .status-label {
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .status-label.active {
+      color: var(--accent);
+    }
+
+    .status-hint {
+      margin-left: auto;
+      font-size: 8px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      opacity: 0.7;
+    }
+
+    /* ── BODY ────────────────────────────────────────── */
+    .body {
+      padding: 16px 16px 18px;
     }
 
     /* Toggle button */
     .toggle-btn {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #5FFFBF44;
-      border-radius: 3px;
-      cursor: pointer;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border-hi);
+      background: var(--surface);
+      color: var(--accent);
       font-family: inherit;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
-      transition: all 0.2s;
-      background: #073642;
-      color: #5FFFBF;
-      margin-bottom: 14px;
+      cursor: pointer;
+      transition: all .2s;
+      margin-bottom: 18px;
     }
 
     .toggle-btn:hover {
-      background: #5FFFBF;
-      border-color: #5FFFBF;
-      color: #002B36;
-      box-shadow: 0 0 12px rgba(95, 255, 191, 0.3);
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+      box-shadow: 0 0 16px var(--accent-dim);
     }
 
     .toggle-btn.active {
-      background: #5FFFBF;
-      border-color: #5FFFBF;
-      color: #002B36;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
     }
 
     .toggle-btn.active:hover {
-      background: #3fd89f;
-      border-color: #3fd89f;
+      filter: brightness(0.88);
     }
 
-    /* Divider */
-    .divider {
-      height: 1px;
-      background: #0a4f5c;
-      margin: 0 0 14px;
+    .toggle-note {
+      font-size: 8.5px;
+      color: var(--accent);
+      opacity: 0.75;
+      letter-spacing: 0.04em;
+      line-height: 1.55;
+      margin-top: -10px;
+      margin-bottom: 16px;
+      padding: 7px 10px;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent)22;
+      border-radius: 4px;
     }
 
-    /* Info block */
-    .info-block {
-      margin-bottom: 14px;
-    }
-
-    .info-heading {
+    /* Section label */
+    .section-label {
       font-size: 9px;
-      font-weight: 700;
-      color: #5FFFBF;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
-    .info-heading::before {
-      content: '$ ';
-      color: #586e75;
+    /* Steps */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 14px;
     }
 
     .step {
       display: flex;
-      gap: 8px;
-      padding: 5px 8px;
-      border-radius: 3px;
-      font-size: 10px;
-      line-height: 1.5;
-      color: #93a1a1;
-      margin-bottom: 3px;
-      background: #073642;
-      border: 1px solid #0a4f5c;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
     }
 
-    .step-num {
-      color: #5FFFBF;
-      font-weight: 700;
+    .step-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: var(--accent-dim);
+      border: 1px solid var(--accent)44;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      color: var(--accent);
       flex-shrink: 0;
-      min-width: 14px;
+      margin-top: 1px;
     }
 
-    /* Lock flow note */
-    .lock-note {
-      background: #073642;
-      border: 1px solid #b5890033;
-      border-left: 3px solid #b58900;
-      border-radius: 3px;
-      padding: 7px 10px;
+    .step-text {
+      color: var(--text);
       font-size: 10px;
-      color: #93a1a1;
-      line-height: 1.6;
-      margin-bottom: 14px;
+      line-height: 1.55;
     }
 
-    .lock-note-title {
-      font-size: 9px;
-      font-weight: 700;
-      color: #b58900;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 4px;
+    .step-text em {
+      font-style: normal;
+      color: var(--amber);
     }
 
     kbd {
-      background: #002B36;
-      border: 1px solid #0a4f5c;
-      border-radius: 2px;
-      padding: 1px 5px;
+      background: var(--bg);
+      border: 1px solid var(--border-hi);
+      border-radius: 3px;
+      padding: 0 5px;
       font-family: inherit;
-      color: #5FFFBF;
       font-size: 9px;
+      color: var(--text-hi);
+      white-space: nowrap;
     }
 
     /* Works with */
-    .works-with {
-      font-size: 10px;
-      color: #586e75;
-      line-height: 1.6;
-      border-top: 1px solid #0a4f5c;
-      padding-top: 10px;
-    }
-
-    .works-with-label {
-      font-size: 9px;
-      font-weight: 700;
-      color: #5FFFBF;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 4px;
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 14px 0;
     }
 
     .tag-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 4px;
-      margin-top: 5px;
+      gap: 5px;
+      margin-top: 6px;
     }
 
     .tag {
-      background: #073642;
-      border: 1px solid #0a4f5c;
-      border-radius: 2px;
-      padding: 2px 6px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
       font-size: 9px;
-      color: #2aa198;
+      color: var(--teal);
       letter-spacing: 0.04em;
+    }
+
+    /* ── DRAWER OVERLAY ──────────────────────────────── */
+    /* Dimming overlay behind drawers */
+    .drawer-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0);
+      pointer-events: none;
+      transition: background .28s ease;
+      z-index: 20;
+    }
+
+    .drawer-overlay.visible {
+      background: rgba(0, 0, 0, 0.35);
+      pointer-events: auto;
+    }
+
+    /* ── DRAWERS ─────────────────────────────────────── */
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: var(--drawer-w);
+      height: 100%;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+      transform: translateX(100%);
+      transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .drawer.open {
+      transform: translateX(0);
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px 13px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .drawer-title {
+      flex: 1;
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-hi);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .drawer-close {
+      width: 26px;
+      height: 26px;
+      border-radius: 5px;
+      background: none;
+      border: 1px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: color .15s, border-color .15s, background .15s;
+      line-height: 1;
+    }
+
+    .drawer-close:hover {
+      color: var(--text-hi);
+      border-color: var(--border-hi);
+      background: var(--surface);
+    }
+
+    .drawer-body {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 18px 16px 16px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    /* ── SETTINGS DRAWER CONTENTS ────────────────────── */
+    .settings-section {
+      margin-bottom: 20px;
+    }
+
+    .settings-section-label {
+      font-size: 8px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .settings-field {
+      margin-bottom: 14px;
+    }
+
+    .settings-field-label {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .shortcut-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .shortcut-display {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: 5px;
+      padding: 7px 10px;
+      font-family: inherit;
+      font-size: 10px;
+      color: var(--text-hi);
+      cursor: pointer;
+      text-align: center;
+      transition: border-color .2s, color .2s;
+      user-select: none;
+    }
+
+    .shortcut-display:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .shortcut-display.recording {
+      border-color: var(--amber);
+      color: var(--amber);
+      animation: blink .7s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .45
+      }
+    }
+
+    .settings-hint {
+      font-size: 9px;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-top: 6px;
+    }
+
+    .settings-btn {
+      padding: 6px 11px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all .18s;
+      flex-shrink: 0;
+    }
+
+    .settings-btn:hover {
+      border-color: var(--border-hi);
+      color: var(--text-hi);
+    }
+
+    .settings-btn.danger:hover {
+      border-color: var(--red)66;
+      color: var(--red);
+    }
+
+    /* Toggle switch */
+    .toggle-switch-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 32px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle-track {
+      position: absolute;
+      inset: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+    }
+
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: transform .2s, background .2s;
+    }
+
+    .toggle-switch input:checked+.toggle-track {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+    }
+
+    .toggle-switch input:checked+.toggle-track::after {
+      transform: translateX(14px);
+      background: var(--accent);
+    }
+
+    .toggle-switch-label {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* Overlay style pills */
+    .overlay-pills {
+      display: flex;
+      gap: 5px;
+    }
+
+    .overlay-pill {
+      flex: 1;
+      padding: 6px 0;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      text-align: center;
+      cursor: pointer;
+      transition: all .18s;
+    }
+
+    .overlay-pill:hover {
+      border-color: var(--border-hi);
+      color: var(--text-hi);
+    }
+
+    .overlay-pill.active {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .settings-actions {
+      display: flex;
+      justify-content: flex-end;
+      padding-top: 4px;
+    }
+
+    .save-btn {
+      padding: 7px 20px;
+      border-radius: 5px;
+      border: 1px solid var(--accent)55;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-family: inherit;
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .18s;
+    }
+
+    .save-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+
+    .save-btn.saved {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+
+    /* ── HISTORY DRAWER CONTENTS ─────────────────────── */
+    .history-empty {
+      font-size: 9px;
+      color: var(--muted);
+      text-align: center;
+      padding: 20px 0 4px;
+      letter-spacing: 0.08em;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      transition: border-color .15s;
+    }
+
+    .history-item:hover {
+      border-color: var(--border-hi);
+    }
+
+    .history-thumb {
+      width: 36px;
+      height: 36px;
+      border-radius: 4px;
+      object-fit: cover;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .history-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .history-url {
+      font-size: 9px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.02em;
+    }
+
+    .history-meta {
+      font-size: 8px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .history-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .history-btn {
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 8px;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+    }
+
+    .history-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .history-footer {
+      display: flex;
+      justify-content: flex-end;
+      padding-top: 12px;
+      margin-top: 6px;
+      border-top: 1px solid var(--border);
+    }
+
+    .history-clear-btn {
+      background: none;
+      border: none;
+      font-family: inherit;
+      font-size: 9px;
+      color: var(--muted);
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      transition: color .15s;
+      padding: 0;
+    }
+
+    .history-clear-btn:hover {
+      color: var(--red);
     }
   </style>
 </head>
 
 <body>
 
-  <div class="header">
-    <div class="logo-icon" id="logoIcon">
-      <img src="imgs/icon128.png" width="24" height="24" alt="PixelPull">
+  <!-- Drawer overlay (dim background) -->
+  <div class="drawer-overlay" id="drawerOverlay"></div>
+
+  <!-- Settings Drawer -->
+  <div class="drawer" id="settingsDrawer">
+    <div class="drawer-header">
+      <span class="drawer-title">Settings</span>
+      <button class="drawer-close" id="settingsClose" title="Close">✕</button>
     </div>
-    <div>
-      <div class="logo-text">PixelPull</div>
-      <div class="logo-sub">Hover &amp; Copy</div>
+    <div class="drawer-body">
+
+      <div class="settings-section">
+        <div class="settings-section-label">Keyboard Shortcut</div>
+        <div class="settings-field">
+          <div class="shortcut-row">
+            <div class="shortcut-display" id="shortcutDisplay">Alt+G</div>
+            <button class="settings-btn danger" id="shortcutClear">Reset</button>
+          </div>
+          <div class="settings-hint">Click the box, then press any key combo.</div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-label">Behaviour</div>
+        <div class="settings-field">
+          <div class="toggle-switch-row">
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoExitToggle">
+              <span class="toggle-track"></span>
+            </label>
+            <label class="toggle-switch-label" for="autoExitToggle">Auto-exit after action</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-label">Hover Overlay Style</div>
+        <div class="settings-field">
+          <div class="overlay-pills">
+            <button class="overlay-pill active" data-style="outline">Outline</button>
+            <button class="overlay-pill" data-style="dim">Dim</button>
+            <button class="overlay-pill" data-style="minimal">Minimal</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button class="save-btn" id="settingsSave">Save</button>
+      </div>
+
     </div>
   </div>
 
+  <!-- History Drawer -->
+  <div class="drawer" id="historyDrawer">
+    <div class="drawer-header">
+      <span class="drawer-title">Recent Grabs</span>
+      <button class="drawer-close" id="historyClose" title="Close">✕</button>
+    </div>
+    <div class="drawer-body">
+      <div id="historyList" class="history-list"></div>
+      <div id="historyEmpty" class="history-empty">No grabs yet this session</div>
+      <div class="history-footer">
+        <button class="history-clear-btn" id="historyClearBtn">Clear all</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-wrap" id="logoIcon">
+      <img src="imgs/icon128.png" width="20" height="20" alt="PixelPull">
+    </div>
+    <div class="header-text">
+      <div class="h-name">PixelPull</div>
+      <div class="h-sub">Image Grabber</div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="historyBtn" title="Recent Grabs">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.4" />
+          <path d="M8 5V8.2L10 10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+      </button>
+      <button class="icon-btn" id="gearBtn" title="Settings">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="8" cy="8" r="2.2" stroke="currentColor" stroke-width="1.4" />
+          <path
+            d="M8 1.5V3M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.06 1.06M11.54 11.54l1.06 1.06M3.4 12.6l1.06-1.06M11.54 4.46l1.06-1.06"
+            stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="status-bar">
+    <span class="status-dot" id="dot"></span>
+    <span class="status-label" id="status-text">Inactive</span>
+    <span class="status-hint" id="statusHint"></span>
+  </div>
+
+  <!-- Main body -->
   <div class="body">
+    <button class="toggle-btn" id="toggleBtn">Activate PixelPull</button>
+    <div class="toggle-note" id="toggleNote" style="display:none">Grabber stays active after this popup closes. Reopen
+      to deactivate.</div>
 
-    <div class="status-line">
-      <span class="status-dot" id="dot"></span>
-      <span id="status-text">Inactive</span>
-    </div>
-
-    <button class="toggle-btn" id="toggleBtn">Activate Grabber</button>
-
-    <div class="divider"></div>
-
-    <div class="info-block">
-      <div class="info-heading">How to use</div>
-      <div class="step"><span class="step-num">1.</span><span>Click Activate or press <kbd>Alt+G</kbd></span></div>
-      <div class="step"><span class="step-num">2.</span><span>Hover over any image on the page</span></div>
-      <div class="step"><span class="step-num">3.</span><span>Click the image to <strong
-            style="color:#b58900">lock</strong> it, then use Copy URL, Copy Image, or Download</span></div>
-      <div class="step"><span class="step-num">4.</span><span>Press <kbd>Esc</kbd> or click to <strong
-            style="color:#b58900">unlock</strong>, then <kbd>Esc</kbd> again to exit</span></div>
-    </div>
-
-    <div class="lock-note">
-      <div class="lock-note-title">🔒 Lock mode</div>
-      Click an image to lock onto it. While locked: click anywhere or press <kbd>Esc</kbd> to unlock. Press
-      <kbd>Esc</kbd> again to exit the grabber entirely.
-    </div>
-
-    <div class="works-with">
-      <div class="works-with-label">Works with</div>
-      <div class="tag-row">
-        <span class="tag">&lt;img&gt;</span>
-        <span class="tag">CSS background</span>
-        <span class="tag">SVG</span>
-        <span class="tag">canvas</span>
-        <span class="tag">video poster</span>
-        <span class="tag">srcset</span>
-        <span class="tag">lazy-load</span>
+    <div class="section-label">How it works</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-icon">1</div>
+        <div class="step-text">Activate, or press <kbd id="shortcutKbd">Alt+G</kbd></div>
+      </div>
+      <div class="step">
+        <div class="step-icon">2</div>
+        <div class="step-text">Hover any image — it highlights</div>
+      </div>
+      <div class="step">
+        <div class="step-icon">3</div>
+        <div class="step-text">Click to <em>lock</em> — Copy URL, Copy Image, or Download</div>
+      </div>
+      <div class="step">
+        <div class="step-icon">4</div>
+        <div class="step-text"><kbd>Esc</kbd> to unlock · <kbd>Esc</kbd> again to exit</div>
       </div>
     </div>
 
+    <div class="divider"></div>
+
+    <div class="section-label">Works with</div>
+    <div class="tag-row">
+      <span class="tag">&lt;img&gt;</span>
+      <span class="tag">CSS bg</span>
+      <span class="tag">SVG</span>
+      <span class="tag">canvas</span>
+      <span class="tag">video poster</span>
+      <span class="tag">&lt;picture&gt;</span>
+      <span class="tag">srcset</span>
+      <span class="tag">lazy-load</span>
+      <span class="tag">shadow DOM</span>
+      <span class="tag">data-URI</span>
+      <span class="tag">blob URLs</span>
+      <span class="tag">GIF · WebP · AVIF</span>
+      <span class="tag">CORS bypass</span>
+    </div>
   </div>
 
   <script src="popup.js"></script>

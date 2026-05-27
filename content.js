@@ -11,6 +11,10 @@ if (window.__imgGrabberLoaded) {
 
   let active    = false;
   let locked    = false;
+  let customShortcut = null; // loaded from storage; null = use Alt+G default only
+  let autoExit       = false; // deactivate after any action
+  let overlayStyle   = 'outline'; // 'outline' | 'dim' | 'minimal'
+  let grabHistory    = []; // last 10 grabbed images [{src, dims, ts}]
   let tooltip   = null;
   let overlay   = null;
   let hud       = null;
@@ -623,6 +627,9 @@ if (window.__imgGrabberLoaded) {
     overlay.style.width  = rect.width  + 'px';
     overlay.style.height = rect.height + 'px';
     overlay.style.display = 'block';
+    overlay.dataset.overlayStyle = overlayStyle;
+    overlay.className = overlay.className.replace(/igrab-ov-\S+/g, '');
+    overlay.classList.add('igrab-ov-' + overlayStyle);
   }
 
   function formatBytes(bytes) {
@@ -913,23 +920,25 @@ if (window.__imgGrabberLoaded) {
     tooltip.querySelector('.igrab-copy-url').onclick = (e) => {
       e.stopPropagation();
       navigator.clipboard.writeText(src)
-        .then(() => flash('URL copied ✓'))
+        .then(() => { flash('URL copied ✓'); recordGrab(src); maybeAutoExit(); })
         .catch(() => {
           const ta = document.createElement('textarea');
           ta.value = src; document.body.appendChild(ta);
           ta.select(); document.execCommand('copy'); ta.remove();
-          flash('URL copied ✓');
+          flash('URL copied ✓'); recordGrab(src); maybeAutoExit();
         });
     };
 
     tooltip.querySelector('.igrab-copy-img').onclick = async (e) => {
       e.stopPropagation();
       await copyImageToClipboard(src);
+      recordGrab(src); maybeAutoExit();
     };
 
     tooltip.querySelector('.igrab-download').onclick = (e) => {
       e.stopPropagation();
       downloadImage(src);
+      recordGrab(src); maybeAutoExit();
     };
 
     tooltip.querySelector('.igrab-open-tab').onclick = (e) => {
@@ -1335,6 +1344,26 @@ if (window.__imgGrabberLoaded) {
 
   
 
+
+  function recordGrab(src) {
+    const dims = (() => {
+      if (!lockedEl) return '';
+      const tag = lockedEl.tagName && lockedEl.tagName.toUpperCase();
+      if (tag === 'IMG' && lockedEl.naturalWidth) return lockedEl.naturalWidth + '×' + lockedEl.naturalHeight;
+      const r = lockedEl.getBoundingClientRect();
+      return Math.round(r.width) + '×' + Math.round(r.height);
+    })();
+    const entry = { src, dims, ts: Date.now() };
+    grabHistory = [entry, ...grabHistory.filter(h => h.src !== src)].slice(0, 10);
+    chrome.storage.local.set({ grabHistory }, () => {
+      chrome.runtime.sendMessage({ action: 'historyUpdated', history: grabHistory },
+        () => { if (chrome.runtime.lastError) {} });
+    });
+  }
+
+  function maybeAutoExit() {
+    if (autoExit) setTimeout(deactivate, 400);
+  }
   function onMouseMove(e) {
     if (!active || locked) return;
     if (document.getElementById('__igrab_crop_modal__')) return;
@@ -1400,6 +1429,30 @@ if (window.__imgGrabberLoaded) {
 
   function onContextMenu(e) { if (active) e.preventDefault(); }
 
+  // Global keydown — handles custom shortcut toggle regardless of active state
+  function onGlobalKeydown(e) {
+    const s = customShortcut;
+    if (!s) return;
+    const match = e.key.toLowerCase() === s.key &&
+                  !!e.ctrlKey  === !!s.ctrl  &&
+                  !!e.altKey   === !!s.alt   &&
+                  !!e.shiftKey === !!s.shift  &&
+                  !!e.metaKey  === !!s.meta;
+    if (match) {
+      e.preventDefault();
+      window.__imgGrabberToggle();
+    }
+  }
+  document.addEventListener('keydown', onGlobalKeydown, true);
+
+  // Load all settings on script init
+  chrome.storage.local.get(['customShortcut', 'autoExit', 'overlayStyle', 'grabHistory'], (res) => {
+    if (res.customShortcut) customShortcut = res.customShortcut;
+    if (res.autoExit !== undefined) autoExit = !!res.autoExit;
+    if (res.overlayStyle) overlayStyle = res.overlayStyle;
+    if (res.grabHistory) grabHistory = res.grabHistory;
+  });
+
   function onKeydown(e) {
     if (!active) return;
     const cropModal = document.getElementById('__igrab_crop_modal__');
@@ -1448,6 +1501,9 @@ if (window.__imgGrabberLoaded) {
     `;
     document.head.appendChild(_cursorStyle);
     showBanner('PixelPull ON');
+    chrome.runtime.sendMessage({ action: 'stateChanged', active: true }, () => {
+      if (chrome.runtime.lastError) {} // popup may not be open, that's fine
+    });
   }
 
   function deactivate() {
@@ -1472,6 +1528,9 @@ if (window.__imgGrabberLoaded) {
       setTimeout(() => { if (hud) { hud.remove(); hud = null; } }, 220);
     }
     showBanner('PixelPull OFF');
+    chrome.runtime.sendMessage({ action: 'stateChanged', active: false }, () => {
+      if (chrome.runtime.lastError) {}
+    });
   }
 
   function showBanner(msg) {
@@ -1498,5 +1557,14 @@ if (window.__imgGrabberLoaded) {
     if (msg.action === 'toggle')    { window.__imgGrabberToggle(); sendResponse({ active }); return; }
     if (msg.action === 'activate')  { window.__imgGrabberActivate(); sendResponse({ active }); return; }
     if (msg.action === 'deactivate'){ window.__imgGrabberDeactivate(); sendResponse({ active }); return; }
+    if (msg.action === 'updateShortcut') { customShortcut = msg.shortcut; sendResponse({ ok: true }); return; }
+    if (msg.action === 'updateSettings') {
+      const s = msg.settings;
+      if (s.customShortcut) customShortcut = s.customShortcut;
+      if (s.autoExit !== undefined) autoExit = !!s.autoExit;
+      if (s.overlayStyle) overlayStyle = s.overlayStyle;
+      sendResponse({ ok: true }); return;
+    }
+    if (msg.action === 'clearHistory') { grabHistory = []; sendResponse({ ok: true }); return; }
   });
 }
